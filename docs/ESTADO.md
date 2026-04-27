@@ -9,11 +9,11 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 **Sprint 3 — Schema de DB y autenticación** (parte 1 completada el 2026-04-27).
 
-Próximo: **Sprint 4 — Gestión de productos (P5)**. Sprint 3 parte 2 (Auth.js real) puede esperar — corre en paralelo o después de P5.
+Próximo: **Sprint 4 — Gestión de productos (P5)**, fragmentado en P5.1 (listado + búsqueda) y P5.2 (alta/edición con variantes). Sprint 3 parte 2 (Auth.js real) puede esperar — corre en paralelo o después de P5.
 
 ## Tarea en curso
 
-Ninguna. Sprint 3 parte 1 cerrado y commiteado, listo para arrancar P5.
+Ninguna. Sprint 3 parte 1 cerrado y commiteado, listo para arrancar **P5.1 — Listado de productos**.
 
 ## Último avance
 
@@ -38,7 +38,9 @@ Ninguna. Sprint 3 parte 1 cerrado y commiteado, listo para arrancar P5.
 
 ## Próxima tarea
 
-**Sprint 4 — Gestión de productos (P5)**: CRUD completo de productos con código de barras, variantes y override de precio/costo. Importación bulk desde Excel. Es la siguiente pantalla en valor concreto para el cliente y la base para que Sprint 5 (stock) y Sprint 6 (ventas) puedan operar contra datos reales.
+**Sprint 4 — P5.1 Listado de productos**: tabla con filtros (categoría, búsqueda), paginación, vista diferenciada por rol (Vendedor read-only sin columna de costo, Admin con botón "Editar" que apunta a `/productos/[id]/editar` que se construye en P5.2). Después viene P5.2 (alta/edición con variantes).
+
+**Importación bulk Excel/CSV queda fuera del MVP** (ver `DECISIONES.md` 2026-04-27). El catálogo se carga manualmente con buena UX en simultáneo con el inventario inicial físico de Sprint 8.
 
 ## Bloqueos
 
@@ -58,7 +60,8 @@ Ninguno.
 - Variantes de producto (color, tamaño, presentación): frecuentes. Soportadas desde el MVP. Modelo: precio y costo a nivel **producto** (`precioBase` / `costoBase`) con override opcional a nivel **variante** (`precio` / `costo` nullable que sobrescriben).
 - Métodos de pago: efectivo, transferencia, débito, crédito. Pagos mixtos sí (modelados en `Venta.metodosPago` como Json). Sin cuenta corriente.
 - Descuento estándar: 10% por efectivo o transferencia (regla automática del sistema).
-- Markup estándar: 115% (con flexibilidad ±5pp). El sistema sugiere precio de venta al cargar costo.
+- Markup sugerido: 115% (al cargar costo, el sistema sugiere precio de venta). **Totalmente editable, sin tope** — el Admin puede subir o bajar sin restricción ni warnings.
+- Vendedor ve precio de venta en el listado de productos. Costo solo Admin.
 - Roles del MVP: **Admin** (Felipa + Agustín) y **Vendedor** (Andrea + Gisela). Definidos como enum `Rol` en el schema.
 - Auth en este momento: **mock provisorio basado en cookie**, ahora conectado a DB. Se reemplaza por Auth.js real en Sprint 3 parte 2.
 - Sin fecha objetivo de go-live.

@@ -183,4 +183,36 @@ Si la variante tiene `precio = null`, hereda de `Producto.precioBase`. Si tiene 
 
 ---
 
+## 2026-04-27 · Markup sugerido editable libremente (sin tope de ±5pp)
+
+**Por qué**: originalmente se anotó "115% con flexibilidad ±5pp" como regla del sistema, pero el cliente confirmó que en la realidad operativa suben o bajan el markup según contexto sin ceñirse a un tope rígido. Bloquear el campo o forzar validación a ±5pp sería entorpecer un proceso que hoy ya hacen libre.
+
+**Comportamiento del sistema**:
+- Al cargar un producto/variante, **al ingresar el costo, el sistema calcula y sugiere el precio de venta** con markup 115% (`precio = costo * 2.15`).
+- El campo de precio queda **totalmente editable** sin tope ni validación de rango. El Admin escribe lo que quiere.
+- Si el Admin no quiere usar la sugerencia, puede ignorarla o sobrescribirla sin pasos extra.
+
+**Implicancia en UX**: el markup 115% es ayuda visual, no reglas de negocio. No hay alertas "el precio difiere más del 5% de lo sugerido". El Admin sabe lo que hace.
+
+**Alternativas descartadas**:
+- **Tope ±5pp con validación bloqueante**: entorpece el flujo real del cliente.
+- **Tope ±5pp con warning suave**: agrega ruido visual sin valor — el Admin ya sabe cuándo se aparta.
+- **Sin sugerencia automática del sistema**: pierde una ayuda barata para el caso común (115%).
+
+---
+
+## 2026-04-27 · Importación bulk Excel/CSV queda fuera del MVP
+
+**Por qué**: al evaluar el alcance de P5 Gestión de productos, la importación CSV/Excel apareció como un sub-feature pesado: parseo con encoding (UTF-8 vs Latin-1), mapeo de columnas, modelado de variantes en filas/columnas, validaciones, manejo de errores, UX de preview, auto-creación de categorías. Implementarla bien es un sprint chico en sí mismo.
+
+**Por el lado del cliente**: no hay catálogo digital previo en ningún formato. El relevamiento de los ~200 productos va a ocurrir en simultáneo con el inventario inicial físico de Sprint 8 — hay que tocar producto por producto sí o sí, contando físicamente. Una buena UX de carga manual con creación de categorías inline, atajos de teclado y autocompletado carga 200 productos en una tarde con menos fricción que armar primero un Excel ordenado para importar.
+
+**Plan de evolución**: si post-go-live aparece un caso real (ej: actualización masiva de precios al cambiar lista de proveedor, o integración con sistema externo que exporta Excel), se evalúa y cotiza por separado.
+
+**Alternativas descartadas**:
+- **Importación bulk en MVP**: agrega ~1 sprint de complejidad sin un caso de uso inmediato real. El cliente cargaría manual igual durante el inventario inicial.
+- **Importación bulk simplificada (solo nombre + precio, sin variantes)**: media solución que igual requiere parseo y validaciones, y deja afuera lo más complejo (variantes) que es justo donde el bulk ahorraría más.
+
+---
+
 _(Próximas decisiones van acá abajo, en orden cronológico.)_

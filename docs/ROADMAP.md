@@ -52,35 +52,29 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 
 **Entregables**:
 - Estructura de rutas con route groups: `(public)/login`, `(app)/<10 pantallas>`, `/health`.
-- Mock auth provisorio (cookie-based) en `lib/auth/mock.ts`. Reemplazado por Auth.js en Sprint 3.
+- Mock auth provisorio (cookie-based) en `lib/auth/mock.ts`. Reemplazado por Auth.js en Sprint 3 parte 2.
 - Layouts con Sidebar (items según rol) + Header con role switcher dev-only y logout.
 - Login placeholder con dos botones para entrar como Admin o Vendedor.
 - 10 pantallas placeholder (P1–P10) con `requireAuth([...])` y código visible.
 - Build verde, `tsc --noEmit` sin errores.
 
-**Criterio de "listo"**: `npm run dev` levanta sin warnings, los 10 criterios de aceptación del prompt original pasan en navegador. **Pendiente verificación manual de Agustín**.
+**Criterio de "listo"**: `npm run dev` levanta sin warnings, los 10 criterios de aceptación del prompt original pasan en navegador. **Cumplido y commiteado** (`a461b02`).
 
 ---
 
 ## Sprint 3 — Schema de DB y autenticación
 
-**Objetivo**: armar los cimientos del backend.
+**Parte 1 ✅ (2026-04-27)** — schema Prisma con 9 modelos (Sucursal, Categoria, Producto, Variante, Stock, Usuario, Venta, ItemVenta, MovimientoStock), enums Rol y TipoMovimiento, migración aplicada, helpers en `lib/db/`, mock auth conectado a DB sin romper firma pública, seed idempotente con datos realistas de bazar. Build y tipos verdes (commit `034ae69`).
 
-**Entregables**:
-- Schema Prisma con las tablas del MVP (Producto, Variante, Stock, Venta, ItemVenta, Usuario, Sucursal).
-- Producto con `precioBase` y `costoBase`. Variante con `precio` y `costo` opcionales (override). Stock y venta a nivel **variante**.
-- Migraciones corriendo.
-- Seed inicial con datos realistas de bazar (no placeholders genéricos): aromatizantes, marroquinería, juguetes, accesorios, acero quirúrgico, belleza personal.
+**Parte 2 — pendiente**:
 - Sistema de login real con Auth.js / NextAuth v5, reemplazando el mock.
-- Roles: **Admin y Vendedor** (no tres roles).
+- bcrypt para `passwordHash` en Usuario.
 - Middleware de protección de rutas (la firma de `requireAuth()` se mantiene).
 - Revisión y resolución de las 5 vulnerabilidades de `npm audit` antes de instalar Auth.js.
 
-**Criterio de "listo"**: puedo loguearme con un Admin y un Vendedor reales contra la DB, y cada uno ve solo lo que le corresponde.
+**Criterio de "listo" parte 2**: puedo loguearme con un Admin y un Vendedor reales contra la DB con email + contraseña, y cada uno ve solo lo que le corresponde.
 
-**Duración estimada**: 2 semanas.
-
-**Posible fragmentación**: la parte de schema (tablas + seed) puede arrancar antes que la parte de Auth.js. P5 Gestión de productos puede empezar a implementarse contra la DB usando el mock auth todavía vigente, mientras Auth.js se hace en paralelo.
+**Duración estimada parte 2**: 1-1.5 semanas. **Puede correr en paralelo con Sprint 4** o después — no es bloqueante para P5.
 
 ---
 
@@ -88,20 +82,30 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 
 **Objetivo**: CRUD completo de productos con código de barras y variantes.
 
-**Entregables**:
-- Pantalla de listado con filtros (categoría, nombre, código).
-- Alta/edición/baja de productos.
-- Código de barras editable, lectura con lector USB (que emula teclado).
-- Categorías y subcategorías.
-- Precio de costo y venta con cálculo de margen sugerido (115% por defecto).
-- Importación bulk desde Excel/CSV para carga inicial del catálogo.
-- Soporte de variantes (color, tamaño, presentación) con código de barras propio por variante.
-- Modelo de precio/costo: hereda del producto por default; override por variante con toggle "esta variante tiene precio propio".
-- UX simple para productos sin variantes (variante única implícita, no se ve).
+**Fragmentación**:
+
+### P5.1 — Listado, búsqueda y vista de Vendedor
+
+- Pantalla `/productos` con tabla paginada.
+- Filtros: búsqueda por nombre y código, filtro por categoría.
+- Columnas para Admin: nombre, categoría, variantes (badge con cantidad), precio, costo, stock total, botón "Editar".
+- Columnas para Vendedor: nombre, categoría, variantes, precio, stock total. Sin costo, sin botón editar.
+- Stock total = suma de stock por variante en la sucursal del usuario logueado.
+
+### P5.2 — Alta, edición y manejo de variantes
+
+- Pantalla `/productos/nuevo` y `/productos/[id]/editar`.
+- Crear categoría inline (sin salir del flujo).
+- Variantes: agregar/quitar/editar dinámicamente. Toggle "esta variante tiene precio propio" para activar override.
+- Markup sugerido al cargar costo: precio = costo × 2.15 (115%). Campo de precio totalmente editable, sin tope ni warnings.
+- Soft delete (botón "Desactivar" que setea `activo = false`).
+- UX optimizada para cargar 200 productos a mano: atajos de teclado, "guardar y cargar otro", autocompletado de categorías existentes.
 
 **Criterio de "listo"**: Agustín puede cargar el catálogo real de Felipa en menos de 1 día.
 
-**Duración estimada**: 2 semanas.
+**Duración estimada total**: 2 semanas (P5.1 + P5.2).
+
+**Importación bulk Excel/CSV NO está en este Sprint** — fuera del MVP por decisión del 2026-04-27. Carga manual con buena UX hace los 200 productos en una tarde durante el inventario inicial.
 
 ---
 
@@ -112,7 +116,7 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 **Entregables**:
 - Stock individual por variante.
 - Ajustes manuales con motivo obligatorio (rotura, robo, conteo, ingreso).
-- Historial de movimientos.
+- Historial de movimientos (`MovimientoStock` ya está modelado).
 - Modo bulk para ingreso de mercadería (cargar factura de proveedor y ajustar varias líneas de una).
 - _(Diferido al upgrade a Intermedio)_: alertas de stock bajo, transferencias entre sucursales (no aplica todavía por ser mono-sucursal).
 
@@ -133,7 +137,7 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 - Métodos de pago: Visa, Mastercard, Maestro, Transferencia, Efectivo.
 - Pagos mixtos (efectivo + tarjeta).
 - Descuento automático del 10% al elegir efectivo o transferencia.
-- ID corto de venta (ej: `F1-2604-127`).
+- ID corto de venta (`generarCodigoVenta()` ya existe — formato `F1-DDMM-NNN`).
 - Comprobante por WhatsApp opcional (botón para enviar al cliente).
 - Búsqueda de venta por ID para devoluciones (≤30 días).
 - Historial de ventas (P3) con filtros por fecha, método de pago, vendedor.
@@ -175,7 +179,7 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 - Testing manual exhaustivo de flujos críticos.
 - Playwright para los 3-4 flujos más críticos (login, nueva venta, baja de stock).
 - Deploy a servidor productivo.
-- Carga completa del catálogo real.
+- Carga completa del catálogo real (manual, durante inventario inicial físico).
 - **Inventario inicial físico** asistido: contar todo el local, cargar al sistema. Estimar 1-2 días con todo el equipo.
 - Verificación de hardware: PC del local con Chrome/Edge actualizado, lector de código de barras conectado y probado, impresora de tickets (si se compró) configurada.
 - Capacitación al equipo de Felipa (admin + vendedoras).
@@ -194,6 +198,7 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 Features que quedan para después del go-live, priorizadas según uso real:
 
 - **Reemplazo total del sistema de facturación actual** (SSL Soft Gescom) con integración AFIP nativa vía Web Service o wrapper (TusFacturas / iFactura / Facturante). Sin esto el doble registro persiste.
+- **Importación bulk Excel/CSV** de productos (si aparece un caso real: actualización masiva de precios, integración con sistema externo, etc.).
 - Historial de precios.
 - Alertas de stock bajo automáticas.
 - Dashboard con gráficos avanzados.
@@ -208,7 +213,7 @@ Cada una se evalúa y cotiza por separado. No se promete nada en el MVP.
 ## Tareas transversales pendientes
 
 - [x] Migrar repo de local a GitHub privado ✅ 2026-04-24
-- [ ] Revisar 5 vulnerabilidades `npm audit` (1 moderate, 4 high) antes de Sprint 3 / Auth.js
+- [ ] Revisar 5 vulnerabilidades `npm audit` (1 moderate, 4 high) antes de Sprint 3 parte 2 / Auth.js
 - [ ] Tarde de observación in-situ en Felipa 1
 - [ ] Definir estrategia de backups de la DB
 - [ ] Definir hosting productivo
