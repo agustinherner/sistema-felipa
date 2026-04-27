@@ -7,40 +7,46 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 3 — Schema de DB y autenticación** (parte 1 completada el 2026-04-27).
-
-Próximo: **Sprint 4 — Gestión de productos (P5)**, fragmentado en P5.1 (listado + búsqueda) y P5.2 (alta/edición con variantes). Sprint 3 parte 2 (Auth.js real) puede esperar — corre en paralelo o después de P5.
+**Sprint 4 — Gestión de productos (P5)**. Parte 1 (P5.1 listado) completada el 2026-04-27. Próximo: **P5.2 — Alta y edición con variantes**.
 
 ## Tarea en curso
 
-Ninguna. Sprint 3 parte 1 cerrado y commiteado, listo para arrancar **P5.1 — Listado de productos**.
+Ninguna. P5.1 cerrado y commiteado. Listo para arrancar P5.2.
 
 ## Último avance
 
-**Sprint 3 parte 1 completada (2026-04-27)** — schema, migración inicial y seed:
+**P5.1 Listado de productos completada (2026-04-27)**:
 
-- Schema Prisma con **9 modelos**: `Sucursal`, `Categoria`, `Producto`, `Variante`, `Stock`, `Usuario`, `Venta`, `ItemVenta`, `MovimientoStock`. `HealthCheck` preservado.
-- Enums: `Rol` (ADMIN / VENDEDOR), `TipoMovimiento` (INGRESO / VENTA / AJUSTE_ROTURA / AJUSTE_ROBO / AJUSTE_CONTEO / DEVOLUCION).
-- Migración `20260427223721_initial_schema` aplicada limpia.
-- Decimal(12,2) en todo lo monetario. Herencia de precio/costo producto → variante con override opcional.
-- Helpers en `lib/db/`:
-  - `index.ts` — singleton Prisma hot-reload-safe.
-  - `precio.ts` — `precioEfectivo()` / `costoEfectivo()` retornan `Prisma.Decimal`.
-  - `codigoVenta.ts` — `generarCodigoVenta(sucursalId)` con formato `F1-DDMM-NNN`, correlativo por día y sucursal.
-- Mock auth conectado a DB sin romper su firma pública. `getMockUser()` ahora resuelve el primer `Usuario` activo por rol. `requireAuth()` acepta strings minúsculas o el enum.
-- Seed idempotente con datos realistas de bazar: 1 sucursal (Felipa 1), 4 usuarios (Felipa, Agustín, Andrea, Gisela), 6 categorías, 12 productos, 28 variantes (mix con/sin variantes y con/sin override de precio), 28 stocks, 1 venta de ejemplo (`F1-2704-001`) con 2 items.
-- Verificación: `prisma migrate dev` ✓, `db seed` ✓ (idempotente, corre dos veces clean), `tsc --noEmit` ✓, `npm run build` ✓ (16/16 páginas).
-- 10 páginas placeholder no se modificaron — la firma pública del mock auth se mantuvo intacta.
+- Pantalla `/productos` reemplaza el placeholder. Server Component con queries directas a Prisma (1 `findMany` con `select` anidado + `_count` + `aggregate` para stock — sin N+1).
+- Filtros via URL searchParams: búsqueda por nombre / código de barras (debounce 300ms en cliente) y filtro por categoría.
+- Paginación custom (Anterior / Siguiente + "Página X de Y" + "Mostrando X–Y de Z"). 20 por página. Redirect a última página si la solicitada está fuera de rango.
+- Vista diferenciada por rol:
+  - **Admin**: 7 columnas (Nombre, Categoría, Variantes, Precio, Costo, Stock, Acciones). Botón "Editar" por fila + botón "Nuevo producto" arriba.
+  - **Vendedor**: 5 columnas (Nombre, Categoría, Variantes, Precio, Stock). Sin costo ni acciones.
+  - Diferencial verificado a nivel HTML (no CSS hidden) por curl + grep.
+- Indicador visual cuando un producto tiene variantes con override de precio/costo (asterisco con tooltip implícito).
+- Estado vacío diferenciado: "no hay productos" (con CTA "Cargar el primero" para Admin) vs "filtros sin resultado" (con botón "Limpiar filtros").
+- Productos inactivos se muestran tachados con badge "Inactivo".
+- Componentes shadcn agregados: `table`, `input`, `badge`. Para el filtro de categoría se usó `<select>` nativo estilizado para evitar instalar `@radix-ui/react-select` y no romper deps como en Sprint 2.
+- Verificación: `npx tsc --noEmit` ✓, `npm run build` ✓ (16/16 páginas, `/productos` 2.04 kB / 108 kB First Load), render real con curl validó admin/vendedor y los filtros.
+- Solo se modificó `app/(app)/productos/page.tsx`. Las otras 9 pantallas, `lib/auth/`, `lib/db/` y `prisma/` no se tocaron. Sin nuevas deps en `package.json`.
 
-**Sprint 2 completado (2026-04-27)** — scaffold de pantallas con mock auth (commit `a461b02`).
+**Sprint 3 parte 1 completada (2026-04-27)** — schema, migración inicial, seed (commit `034ae69`).
+
+**Sprint 2 completado (2026-04-27)** — scaffold con mock auth (commit `a461b02`).
 
 **Sprint 1 — parcialmente avanzado**: cuestionario respondido + segunda ronda. **Pendiente**: tarde de observación in-situ en Felipa 1.
 
 ## Próxima tarea
 
-**Sprint 4 — P5.1 Listado de productos**: tabla con filtros (categoría, búsqueda), paginación, vista diferenciada por rol (Vendedor read-only sin columna de costo, Admin con botón "Editar" que apunta a `/productos/[id]/editar` que se construye en P5.2). Después viene P5.2 (alta/edición con variantes).
+**P5.2 — Alta y edición con variantes**:
 
-**Importación bulk Excel/CSV queda fuera del MVP** (ver `DECISIONES.md` 2026-04-27). El catálogo se carga manualmente con buena UX en simultáneo con el inventario inicial físico de Sprint 8.
+- Páginas `/productos/nuevo` y `/productos/[id]/editar` (que hoy dan 404).
+- Crear categoría inline desde el formulario de producto (sin salir del flujo).
+- Variantes: agregar / quitar / editar dinámicamente. Toggle "esta variante tiene precio propio" para activar override de precio/costo.
+- Markup sugerido al cargar costo: precio = costo × 2.15. Campo totalmente editable, sin tope.
+- Soft delete (botón "Desactivar" → setea `activo = false`).
+- UX para cargar 200 productos a mano: atajos de teclado, "guardar y cargar otro", autocompletado de categorías existentes.
 
 ## Bloqueos
 
@@ -61,7 +67,7 @@ Ninguno.
 - Métodos de pago: efectivo, transferencia, débito, crédito. Pagos mixtos sí (modelados en `Venta.metodosPago` como Json). Sin cuenta corriente.
 - Descuento estándar: 10% por efectivo o transferencia (regla automática del sistema).
 - Markup sugerido: 115% (al cargar costo, el sistema sugiere precio de venta). **Totalmente editable, sin tope** — el Admin puede subir o bajar sin restricción ni warnings.
-- Vendedor ve precio de venta en el listado de productos. Costo solo Admin.
+- Vendedor ve precio de venta en el listado de productos. Costo solo Admin (verificado a nivel HTML, no CSS).
 - Roles del MVP: **Admin** (Felipa + Agustín) y **Vendedor** (Andrea + Gisela). Definidos como enum `Rol` en el schema.
 - Auth en este momento: **mock provisorio basado en cookie**, ahora conectado a DB. Se reemplaza por Auth.js real en Sprint 3 parte 2.
 - Sin fecha objetivo de go-live.
