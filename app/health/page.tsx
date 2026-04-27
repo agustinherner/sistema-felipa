@@ -1,25 +1,26 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { prisma } from "@/lib/prisma"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { prisma } from '@/lib/prisma';
 
 async function checkDatabase(): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    await prisma.$queryRaw`SELECT 1`
-    return { ok: true }
+    await prisma.$queryRaw`SELECT 1`;
+    return { ok: true };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
-export default async function HomePage() {
-  const dbStatus = await checkDatabase()
+export const dynamic = 'force-dynamic';
+
+export default async function HealthPage() {
+  const dbStatus = await checkDatabase();
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="flex w-full max-w-xl flex-col gap-6">
         <header className="space-y-1 text-center">
-          <h1 className="text-4xl font-bold tracking-tight">Sistema Felipa</h1>
-          <p className="text-muted-foreground">Sprint 0 — Setup técnico</p>
+          <h1 className="text-3xl font-bold tracking-tight">Sistema Felipa</h1>
+          <p className="text-muted-foreground">Health check</p>
         </header>
 
         <Card>
@@ -27,7 +28,7 @@ export default async function HomePage() {
             <CardTitle>Estado del sistema</CardTitle>
             <CardDescription>Verificación de conexión a la base de datos</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             {dbStatus.ok ? (
               <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
                 <span className="inline-block h-2 w-2 rounded-full bg-green-600" aria-hidden />
@@ -42,14 +43,9 @@ export default async function HomePage() {
                 <p className="break-all font-mono text-xs text-red-700">{dbStatus.error}</p>
               </div>
             )}
-
-            <div className="flex gap-2">
-              <Button>Botón primario</Button>
-              <Button variant="outline">Secundario</Button>
-            </div>
           </CardContent>
         </Card>
       </div>
     </main>
-  )
+  );
 }
