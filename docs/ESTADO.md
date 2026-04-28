@@ -7,13 +7,27 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 5 — Control de stock por sucursal (P6)**. P6.1 (vista + ajustes individuales) y P6.2 (ingreso de mercadería bulk) completados el 2026-04-27. Próximo: **P6.3 — Historial completo de movimientos**.
+**Sprint 5 — Control de stock por sucursal (P6) COMPLETADO**. P6.1 + P6.2 + P6.3 cerradas. Próximo: **Sprint 6 — Ventas (P2 + P3)**.
 
 ## Tarea en curso
 
-Ninguna. P6.2 cerrado y commiteado. Listo para arrancar P6.3.
+Ninguna. P6.3 cerrado, listo para commit.
 
 ## Último avance
+
+**P6.3 Historial completo de movimientos completada (2026-04-28)**:
+
+- Pantalla `/stock/movimientos` (Admin only). Vendedor redirigido a `/`.
+- Tabla cronológica de todos los `MovimientoStock` con columnas: Fecha (corta + hora), Tipo (con color sutil por categoría), Producto · Variante (vía `etiquetaVariante`, link a venta si aplica), Cantidad (con signo y color), Stock resultante (running total), Usuario.
+- Filtros vía URL searchParams: `desde`, `hasta` (default últimos 30 días), `tipo`, `varianteId`, `usuarioId`, `motivo` (contains case-insensitive con debounce 300ms).
+- Pills clickeables para cada filtro activo + botón "Limpiar filtros". Pill explícita "Filtrando últimos 30 días" cuando se usa el default.
+- Cálculo de `stockResultante` con window function (`SUM() OVER (PARTITION BY varianteId, sucursalId ORDER BY creadoEn, id)`) en CTE. Importante: el running total se calcula sobre TODA la historia (no solo el rango filtrado), así un filtro `desde=hoy` muestra el stock real al día acumulado.
+- Paginación 50 filas, redirect a última página si `?page` está fuera de rango.
+- Selector de variante autocompletado (reutiliza `buscarVariantesIngresoAction`). Selector de usuario con los 4 usuarios activos.
+- Cross-nav: botón "Ingreso de mercadería" en `/stock` y `/stock/movimientos`. Botón "Ver historial" en `/stock` y `/stock/ingreso`.
+- Helper `colorTipoMovimiento()` agregado en `lib/stock/helpers.ts`.
+- Verificación end-to-end con Claude Preview MCP: 13/13 tests pasados (vendedor redirect, filtros independientes y combinados, stock resultante con/sin filtro de fecha, paginación 58 movs, URL sharing, autocompletado, cross-nav).
+- Build (`npm run build`) y typecheck (`npx tsc --noEmit`) verdes. `/stock/movimientos` 4.5 kB / 111 kB First Load.
 
 **P6.2 Ingreso de mercadería bulk completada (2026-04-27)**:
 
@@ -54,9 +68,7 @@ Ninguna. P6.2 cerrado y commiteado. Listo para arrancar P6.3.
 
 ## Próxima tarea
 
-**P6.3 — Historial completo de movimientos**: pantalla `/stock/movimientos` (Admin only) con tabla cronológica de todos los `MovimientoStock`. Filtros por rango de fechas, tipo, variante, usuario, búsqueda en motivo. Cálculo de stock resultante por fila. Paginación 50 filas. Default últimos 30 días. Cierra Sprint 5 (P6 completo).
-
-Después: **Sprint 6 — Ventas (P2 + P3)**. Es la pantalla más usada del sistema y la que destraba el go-live.
+**Sprint 6 — Ventas (P2 + P3)**. Es la pantalla más usada del sistema y la que destraba el go-live.
 
 ## Bloqueos
 
