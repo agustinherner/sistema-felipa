@@ -1,5 +1,9 @@
 import { Prisma, type TipoMovimiento } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import {
+  esNombreVarianteUnica,
+  type VarianteParaIngreso,
+} from './helpers';
 
 export type StockListadoFila = {
   productoId: string;
@@ -151,4 +155,74 @@ export async function getMovimientosVariante(
     ventaId: r.ventaId,
     ventaCodigoCorto: r.venta?.codigoCorto ?? null,
   }));
+}
+
+export async function buscarVariantesParaIngreso(opts: {
+  q: string;
+  sucursalId: string;
+  limit?: number;
+}): Promise<VarianteParaIngreso[]> {
+  const q = opts.q.trim();
+  const sucursalId = opts.sucursalId;
+  const limit = opts.limit ?? 20;
+  if (!q) return [];
+
+  const select = {
+    id: true,
+    nombre: true,
+    codigoBarras: true,
+    activa: true,
+    producto: { select: { nombre: true, activo: true } },
+    stocks: {
+      where: { sucursalId },
+      select: { cantidad: true },
+    },
+  } satisfies Prisma.VarianteSelect;
+
+  const exact = await prisma.variante.findFirst({
+    where: { codigoBarras: q },
+    select,
+  });
+
+  if (exact) {
+    return [mapVarianteParaIngreso(exact)];
+  }
+
+  const rows = await prisma.variante.findMany({
+    where: {
+      OR: [
+        { codigoBarras: { contains: q, mode: 'insensitive' } },
+        { nombre: { contains: q, mode: 'insensitive' } },
+        { producto: { nombre: { contains: q, mode: 'insensitive' } } },
+      ],
+    },
+    orderBy: [
+      { producto: { nombre: 'asc' } },
+      { nombre: 'asc' },
+    ],
+    take: limit,
+    select,
+  });
+
+  return rows.map(mapVarianteParaIngreso);
+}
+
+function mapVarianteParaIngreso(r: {
+  id: string;
+  nombre: string;
+  codigoBarras: string | null;
+  activa: boolean;
+  producto: { nombre: string; activo: boolean };
+  stocks: { cantidad: number }[];
+}): VarianteParaIngreso {
+  return {
+    varianteId: r.id,
+    productoNombre: r.producto.nombre,
+    varianteNombre: r.nombre,
+    codigoBarras: r.codigoBarras,
+    esVarianteUnicaImplicita: esNombreVarianteUnica(r.nombre),
+    varianteActiva: r.activa,
+    productoActivo: r.producto.activo,
+    stockActual: r.stocks[0]?.cantidad ?? 0,
+  };
 }

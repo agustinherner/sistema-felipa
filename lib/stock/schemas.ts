@@ -43,3 +43,35 @@ export const AjusteSchema = z
   });
 
 export type AjusteInput = z.infer<typeof AjusteSchema>;
+
+export const IngresoLineaSchema = z.object({
+  varianteId: z.string().min(1, 'Variante requerida'),
+  cantidad: z
+    .number()
+    .int('La cantidad debe ser un número entero')
+    .min(1, 'La cantidad debe ser al menos 1'),
+});
+
+export const IngresoBulkSchema = z.object({
+  sucursalId: z.string().min(1, 'Sucursal requerida'),
+  identificador: z
+    .string()
+    .max(100, 'Máximo 100 caracteres')
+    .nullable()
+    .optional(),
+  proveedor: z
+    .string()
+    .max(200, 'Máximo 200 caracteres')
+    .nullable()
+    .optional(),
+  observaciones: z
+    .string()
+    .max(500, 'Máximo 500 caracteres')
+    .nullable()
+    .optional(),
+  lineas: z
+    .array(IngresoLineaSchema)
+    .min(1, 'Agregá al menos una línea'),
+});
+
+export type IngresoBulkInput = z.infer<typeof IngresoBulkSchema>;

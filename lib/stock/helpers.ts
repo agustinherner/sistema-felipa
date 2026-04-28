@@ -36,3 +36,42 @@ export type HistorialMovimientoView = {
   ventaId: string | null;
   ventaCodigoCorto: string | null;
 };
+
+export type VarianteParaIngreso = {
+  varianteId: string;
+  productoNombre: string;
+  varianteNombre: string;
+  codigoBarras: string | null;
+  esVarianteUnicaImplicita: boolean;
+  varianteActiva: boolean;
+  productoActivo: boolean;
+  stockActual: number;
+};
+
+export function esNombreVarianteUnica(nombre: string): boolean {
+  return nombre === 'Única' || nombre === 'Único';
+}
+
+export function etiquetaVariante(opts: {
+  productoNombre: string;
+  varianteNombre: string;
+  esVarianteUnicaImplicita: boolean;
+}): string {
+  if (opts.esVarianteUnicaImplicita) return opts.productoNombre;
+  return `${opts.productoNombre} · ${opts.varianteNombre}`;
+}
+
+export function construirMotivoIngreso(opts: {
+  identificador?: string | null;
+  proveedor?: string | null;
+  observaciones?: string | null;
+}): string {
+  const partes = ['Ingreso'];
+  const id = opts.identificador?.trim();
+  const prov = opts.proveedor?.trim();
+  const obs = opts.observaciones?.trim();
+  if (id) partes.push(id);
+  if (prov) partes.push(prov);
+  if (obs) partes.push(obs);
+  return partes.join(' · ');
+}
