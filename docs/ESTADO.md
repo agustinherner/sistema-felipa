@@ -7,29 +7,39 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 4 — Gestión de productos (P5)**. Parte 1 (P5.1 listado) completada el 2026-04-27. Próximo: **P5.2 — Alta y edición con variantes**.
+**Sprint 4 — Gestión de productos (P5)** completado el 2026-04-27. Próximo: **Sprint 5 — Control de stock por sucursal (P6)** o **Sprint 3 parte 2 — Auth.js real**.
 
 ## Tarea en curso
 
-Ninguna. P5.1 cerrado y commiteado. Listo para arrancar P5.2.
+Ninguna. P5.2 cerrado y commiteado. Sprint 4 completo.
 
 ## Último avance
 
-**P5.1 Listado de productos completada (2026-04-27)**:
+**P5.2 Alta y edición de productos completada (2026-04-27)**:
 
-- Pantalla `/productos` reemplaza el placeholder. Server Component con queries directas a Prisma (1 `findMany` con `select` anidado + `_count` + `aggregate` para stock — sin N+1).
-- Filtros via URL searchParams: búsqueda por nombre / código de barras (debounce 300ms en cliente) y filtro por categoría.
-- Paginación custom (Anterior / Siguiente + "Página X de Y" + "Mostrando X–Y de Z"). 20 por página. Redirect a última página si la solicitada está fuera de rango.
-- Vista diferenciada por rol:
-  - **Admin**: 7 columnas (Nombre, Categoría, Variantes, Precio, Costo, Stock, Acciones). Botón "Editar" por fila + botón "Nuevo producto" arriba.
-  - **Vendedor**: 5 columnas (Nombre, Categoría, Variantes, Precio, Stock). Sin costo ni acciones.
-  - Diferencial verificado a nivel HTML (no CSS hidden) por curl + grep.
-- Indicador visual cuando un producto tiene variantes con override de precio/costo (asterisco con tooltip implícito).
-- Estado vacío diferenciado: "no hay productos" (con CTA "Cargar el primero" para Admin) vs "filtros sin resultado" (con botón "Limpiar filtros").
-- Productos inactivos se muestran tachados con badge "Inactivo".
-- Componentes shadcn agregados: `table`, `input`, `badge`. Para el filtro de categoría se usó `<select>` nativo estilizado para evitar instalar `@radix-ui/react-select` y no romper deps como en Sprint 2.
-- Verificación: `npx tsc --noEmit` ✓, `npm run build` ✓ (16/16 páginas, `/productos` 2.04 kB / 108 kB First Load), render real con curl validó admin/vendedor y los filtros.
-- Solo se modificó `app/(app)/productos/page.tsx`. Las otras 9 pantallas, `lib/auth/`, `lib/db/` y `prisma/` no se tocaron. Sin nuevas deps en `package.json`.
+- Páginas `/productos/nuevo` y `/productos/[id]/editar`, ambas Admin-only (Vendedor → redirect a `/`).
+- Server Actions: `crearProducto`, `editarProducto`, `desactivarProducto`, `reactivarProducto`, `crearCategoria`. Todas con `requireAuth(['ADMIN'])`, escrituras dentro de `prisma.$transaction`, `revalidatePath('/productos')` después de mutar.
+- Validación con Zod: schemas compartidos cliente/servidor en `lib/productos/schemas.ts`. Validación de unicidad de código de barras pre-emptiva contra DB (no depende del unique constraint).
+- Modelo de variantes en UI: toggle "Este producto tiene variantes". Si está apagado, se crea 1 variante única implícita (`nombre = "Única"`, sin atributos, sin override). Si está prendido, lista dinámica con add/remove + toggle "esta variante tiene precio propio" para override.
+- Markup automático 115%: precio = costo × 2.15 al salir del campo costo (onBlur) y también al submitear desde cualquier vía (Enter, Ctrl+Enter, click en botón). No sobrescribe si el usuario ya cargó precio. Aplica también a variantes con override activo.
+- Soft delete inteligente al editar: variantes que estaban en DB y desaparecieron del input se marcan `activa = false` si tienen ventas/movimientos asociados, se eliminan duro si no.
+- Categoría inline: modal "Nueva categoría" desde el formulario, sin perder state del producto en curso. Categoría creada queda pre-seleccionada.
+- "Guardar y cargar otro" persiste la categoría seleccionada entre cargas (URL searchParam).
+- Atajo `Ctrl+Enter` desde cualquier campo dispara submit. Foco automático en "Nombre" al abrir.
+- Banner amarillo en `/productos/[id]/editar` cuando el producto está inactivo. Botón "Reactivar" sin confirmación cuando está inactivo, "Desactivar" con confirm dialog cuando está activo.
+- Mensajes de error claros: cuando un código de barras está duplicado contra otro producto, el banner dice qué producto ya lo usa. Inputs en rojo en las variantes con error.
+- Sin nuevas deps de UI: modal, checkbox, textarea, dialog hechos a mano con Tailwind (consistente con P5.1). Única dep nueva: `zod`.
+- Verificación end-to-end con Claude Preview MCP (browser real) cubrió: caso happy path, caso error de duplicado intra-producto (validación cliente), caso error de duplicado contra otro producto (server con banner), recarga de página post-creación inline de categoría, y persistencia entre tabs.
+- Build (`npm run build`) y typecheck (`npx tsc --noEmit`) verdes. `/productos/nuevo` 196 B / 112 kB First Load. `/productos/[id]/editar` 1.03 kB.
+
+**Bugs encontrados y corregidos durante verificación de P5.2** (vale la pena recordarlos para próximos sprints):
+- `nuevaVarianteVacia` importada desde Client Component (`ProductoForm.tsx`) hacia Server Component (`page.tsx`) → fix: movida a `lib/productos/helpers.ts` neutral.
+- Markup no aplicaba al submitear con Enter (`onBlur` no dispara) → fix: aplicar markup también al inicio de `handleSubmit` antes de la action.
+- `<NuevaCategoriaModal>` renderizaba `<form>` dentro del `<form>` del producto → HTML inválido, parser colapsa formularios, click en "Crear categoría" disparaba submit del form externo → fix: modal envuelto en fragment fuera del form.
+
+**Lección operativa**: build verde + typecheck verde NO es suficiente para validar UI con Server/Client Components. Los próximos prompts a Code van a incluir verificación end-to-end con browser real como criterio de aceptación obligatorio para flujos interactivos.
+
+**P5.1 Listado completada (2026-04-27)** — server component con queries optimizadas, filtros vía URL searchParams, paginación custom, vista diferenciada por rol verificada a nivel HTML (commit anterior).
 
 **Sprint 3 parte 1 completada (2026-04-27)** — schema, migración inicial, seed (commit `034ae69`).
 
@@ -39,14 +49,12 @@ Ninguna. P5.1 cerrado y commiteado. Listo para arrancar P5.2.
 
 ## Próxima tarea
 
-**P5.2 — Alta y edición con variantes**:
+Decisión a tomar entre:
 
-- Páginas `/productos/nuevo` y `/productos/[id]/editar` (que hoy dan 404).
-- Crear categoría inline desde el formulario de producto (sin salir del flujo).
-- Variantes: agregar / quitar / editar dinámicamente. Toggle "esta variante tiene precio propio" para activar override de precio/costo.
-- Markup sugerido al cargar costo: precio = costo × 2.15. Campo totalmente editable, sin tope.
-- Soft delete (botón "Desactivar" → setea `activo = false`).
-- UX para cargar 200 productos a mano: atajos de teclado, "guardar y cargar otro", autocompletado de categorías existentes.
+- **Opción A — Sprint 5 (P6 Stock)**: ajustes manuales de stock con motivo, historial de movimientos, ingreso bulk de mercadería. Ya tenemos productos cargables; el siguiente eslabón natural en valor para el cliente.
+- **Opción B — Sprint 3 parte 2 (Auth.js real)**: reemplazar el mock auth por Auth.js + bcrypt. Saca un riesgo de encima pero no agrega valor visible al cliente. Incluye revisar 5 vulnerabilidades `npm audit`.
+
+Recomendación del tech lead: Opción A. El sistema empieza a sentirse usable cuando podés cargar producto + ajustar stock + vender, en ese orden. Auth real puede esperar a que el flujo principal esté completo.
 
 ## Bloqueos
 
@@ -62,14 +70,14 @@ Ninguno.
 - Categoría AFIP del cliente: **Responsable Inscripto**. Tiene sistema de facturación propio (SSL Soft Gescom — ORREGO, versión `20251104-7023201`). **El MVP NO integra AFIP**, conviven en paralelo durante el primer tiempo. Camino post-MVP más probable: reemplazo total con AFIP nativo (no integración con Gescom).
 - Volumen estimado: caja diaria promedio $280k, sábados buenos $800k, picos navideños hasta $1.5M.
 - Equipo: 4 personas total (dueña + hijo + 2 empleadas) cubriendo Felipa 1 y Big Burger / Big Pizza. Todos hacen todo en mostrador, salvo remarcado de mercadería ingresante (solo dueña + hijo).
-- Catálogo actual: ~200 productos estimados, sin contar variantes. **No hay catálogo digital previo**, hay que cargar desde cero.
+- Catálogo actual: ~200 productos estimados, sin contar variantes. **No hay catálogo digital previo**, hay que cargar desde cero. Carga manual con la UX de P5.2 (atajos + "guardar y cargar otro" + categoría inline + autocompletado de markup).
 - Variantes de producto (color, tamaño, presentación): frecuentes. Soportadas desde el MVP. Modelo: precio y costo a nivel **producto** (`precioBase` / `costoBase`) con override opcional a nivel **variante** (`precio` / `costo` nullable que sobrescriben).
 - Métodos de pago: efectivo, transferencia, débito, crédito. Pagos mixtos sí (modelados en `Venta.metodosPago` como Json). Sin cuenta corriente.
 - Descuento estándar: 10% por efectivo o transferencia (regla automática del sistema).
-- Markup sugerido: 115% (al cargar costo, el sistema sugiere precio de venta). **Totalmente editable, sin tope** — el Admin puede subir o bajar sin restricción ni warnings.
+- Markup sugerido: 115% (al cargar costo, el sistema sugiere precio de venta). **Totalmente editable, sin tope**.
 - Vendedor ve precio de venta en el listado de productos. Costo solo Admin (verificado a nivel HTML, no CSS).
 - Roles del MVP: **Admin** (Felipa + Agustín) y **Vendedor** (Andrea + Gisela). Definidos como enum `Rol` en el schema.
-- Auth en este momento: **mock provisorio basado en cookie**, ahora conectado a DB. Se reemplaza por Auth.js real en Sprint 3 parte 2.
+- Auth en este momento: **mock provisorio basado en cookie**, conectado a DB. Se reemplaza por Auth.js real en Sprint 3 parte 2.
 - Sin fecha objetivo de go-live.
 - Repo: GitHub privado `sistema-felipa`, rama `main`.
 - Propuesta comercial aprobada disponible como referencia (PDF de abril 2026).
