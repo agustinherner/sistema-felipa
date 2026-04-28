@@ -17,6 +17,21 @@ export function tipoMovimientoLabel(tipo: TipoMovimiento): string {
   }
 }
 
+export function colorTipoMovimiento(tipo: TipoMovimiento): string {
+  switch (tipo) {
+    case 'INGRESO':
+    case 'DEVOLUCION':
+      return 'bg-emerald-50 text-emerald-900 border-emerald-200';
+    case 'AJUSTE_ROTURA':
+    case 'AJUSTE_ROBO':
+      return 'bg-rose-50 text-rose-900 border-rose-200';
+    case 'VENTA':
+      return 'bg-sky-50 text-sky-900 border-sky-200';
+    case 'AJUSTE_CONTEO':
+      return 'bg-slate-100 text-slate-800 border-slate-200';
+  }
+}
+
 export type StockBadgeKind = 'sin-stock' | 'negativo' | 'bajo' | 'ok';
 
 export function clasificarStock(cantidad: number): StockBadgeKind {

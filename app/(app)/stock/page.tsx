@@ -1,4 +1,7 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { History, PackagePlus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { requireAuth } from '@/lib/auth/mock';
 import { prisma } from '@/lib/db';
 import { getCategorias } from '@/lib/productos/queries';
@@ -95,12 +98,28 @@ export default async function StockPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Stock</h1>
-        <p className="text-sm text-muted-foreground">
-          {listado.total}{' '}
-          {listado.total === 1 ? 'variante' : 'variantes'}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-semibold">Stock</h1>
+          <p className="text-sm text-muted-foreground">
+            {listado.total}{' '}
+            {listado.total === 1 ? 'variante' : 'variantes'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/stock/movimientos">
+              <History className="h-4 w-4" />
+              Ver historial
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/stock/ingreso">
+              <PackagePlus className="h-4 w-4" />
+              Ingreso de mercadería
+            </Link>
+          </Button>
+        </div>
       </div>
       <StockFilters
         categorias={categorias}
