@@ -20,7 +20,7 @@ export async function getMockUser(): Promise<MockUser | null> {
   const value = cookies().get(MOCK_AUTH_COOKIE)?.value;
   if (value !== 'admin' && value !== 'vendedor') return null;
 
-  const usuario = await prisma.usuario.findFirst({
+  const usuario = await prisma.user.findFirst({
     where: {
       rol: value === 'admin' ? 'ADMIN' : 'VENDEDOR',
       activo: true,

@@ -1,4 +1,4 @@
-import type { Rol, Usuario } from '@prisma/client';
+import type { Rol, User } from '@prisma/client';
 
 export type Role = 'admin' | 'vendedor';
 
@@ -12,7 +12,7 @@ export type MockUser = {
 
 export const MOCK_AUTH_COOKIE = 'felipa-mock-role';
 
-export type { Rol, Usuario };
+export type { Rol, User };
 
 export function rolToRole(rol: Rol): Role {
   return rol === 'ADMIN' ? 'admin' : 'vendedor';
@@ -23,7 +23,7 @@ export function roleToRol(role: Role | Rol): Rol {
   return role === 'admin' ? 'ADMIN' : 'VENDEDOR';
 }
 
-export function usuarioToMockUser(u: Usuario): MockUser {
+export function usuarioToMockUser(u: User): MockUser {
   return {
     id: u.id,
     name: u.nombre,
