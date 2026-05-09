@@ -10,6 +10,17 @@ const MetodoPagoItemSchema = z.object({
 });
 const MetodosPagoSchema = z.array(MetodoPagoItemSchema);
 
+type MetodoCanonico = 'efectivo' | 'transferencia' | 'debito' | 'credito';
+
+function metodoCanonico(raw: string): MetodoCanonico | null {
+  const s = raw.toLowerCase();
+  if (s === 'efectivo') return 'efectivo';
+  if (s === 'transferencia') return 'transferencia';
+  if (s === 'debito' || s === 'débito') return 'debito';
+  if (s === 'credito' || s === 'crédito') return 'credito';
+  return null;
+}
+
 /** Devuelve el turno abierto del user, o null si no tiene. */
 export async function getTurnoAbierto(userId: string): Promise<Turno | null> {
   return prisma.turno.findFirst({
@@ -57,4 +68,138 @@ export async function calcularEfectivoVendidoEnTurno(
       .reduce((s, m) => s + m.monto, 0);
     return acc + enEfectivo;
   }, 0);
+}
+
+export type ResumenTurnoAbierto = {
+  id: string;
+  aperturaEn: string;
+  efectivoInicialDeclarado: number;
+  cantidadVentas: number;
+  totalVendido: number;
+  ventasPorMetodo: {
+    efectivo: number;
+    transferencia: number;
+    debito: number;
+    credito: number;
+  };
+  efectivoEsperado: number;
+};
+
+/**
+ * Devuelve el resumen del turno abierto del usuario, o null si no hay.
+ * Calcula totales agregando las ventas asociadas al turno.
+ */
+export async function obtenerResumenTurnoAbierto(
+  userId: string,
+): Promise<ResumenTurnoAbierto | null> {
+  const turno = await prisma.turno.findFirst({
+    where: { userId, cierreEn: null },
+    select: {
+      id: true,
+      aperturaEn: true,
+      efectivoInicialDeclarado: true,
+    },
+  });
+  if (!turno) return null;
+
+  const ventas = await prisma.venta.findMany({
+    where: { turnoId: turno.id },
+    select: { total: true, metodosPago: true },
+  });
+
+  const ventasPorMetodo = {
+    efectivo: 0,
+    transferencia: 0,
+    debito: 0,
+    credito: 0,
+  };
+  let totalVendido = 0;
+
+  for (const venta of ventas) {
+    totalVendido += Number(venta.total);
+    const parsed = MetodosPagoSchema.safeParse(venta.metodosPago);
+    if (!parsed.success) continue;
+    for (const m of parsed.data) {
+      const canonico = metodoCanonico(m.metodo);
+      if (canonico) ventasPorMetodo[canonico] += m.monto;
+    }
+  }
+
+  const efectivoInicial = Number(turno.efectivoInicialDeclarado);
+
+  return {
+    id: turno.id,
+    aperturaEn: turno.aperturaEn.toISOString(),
+    efectivoInicialDeclarado: efectivoInicial,
+    cantidadVentas: ventas.length,
+    totalVendido,
+    ventasPorMetodo,
+    efectivoEsperado: efectivoInicial + ventasPorMetodo.efectivo,
+  };
+}
+
+export type TurnoMesItem = {
+  id: string;
+  aperturaEn: string;
+  cierreEn: string;
+  efectivoInicialDeclarado: number;
+  efectivoEsperadoCierre: number | null;
+  efectivoContadoCierre: number | null;
+  diferencia: number | null;
+  cantidadVentas: number;
+  totalVendido: number;
+};
+
+/**
+ * Lista turnos cerrados del usuario en el mes indicado.
+ * `mes` es 1-indexado (1 = enero, 12 = diciembre).
+ */
+export async function listarTurnosDelMes(
+  userId: string,
+  anio: number,
+  mes: number,
+): Promise<TurnoMesItem[]> {
+  const inicio = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
+  const fin = new Date(anio, mes, 1, 0, 0, 0, 0);
+
+  const turnos = await prisma.turno.findMany({
+    where: {
+      userId,
+      cierreEn: { not: null },
+      aperturaEn: { gte: inicio, lt: fin },
+    },
+    orderBy: { aperturaEn: 'desc' },
+    select: {
+      id: true,
+      aperturaEn: true,
+      cierreEn: true,
+      efectivoInicialDeclarado: true,
+      efectivoEsperadoCierre: true,
+      efectivoContadoCierre: true,
+      diferencia: true,
+      _count: { select: { ventas: true } },
+      ventas: { select: { total: true } },
+    },
+  });
+
+  return turnos.map((t) => {
+    const totalVendido = t.ventas.reduce((s, v) => s + Number(v.total), 0);
+    return {
+      id: t.id,
+      aperturaEn: t.aperturaEn.toISOString(),
+      cierreEn: (t.cierreEn as Date).toISOString(),
+      efectivoInicialDeclarado: Number(t.efectivoInicialDeclarado),
+      efectivoEsperadoCierre:
+        t.efectivoEsperadoCierre !== null
+          ? Number(t.efectivoEsperadoCierre)
+          : null,
+      efectivoContadoCierre:
+        t.efectivoContadoCierre !== null
+          ? Number(t.efectivoContadoCierre)
+          : null,
+      diferencia: t.diferencia !== null ? Number(t.diferencia) : null,
+      cantidadVentas: t._count.ventas,
+      totalVendido,
+    };
+  });
 }
