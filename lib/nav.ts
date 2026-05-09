@@ -29,7 +29,7 @@ export const navGroups: NavGroup[] = [
     id: 'ventas',
     items: [
       {
-        href: '/nueva-venta',
+        href: '/ventas/nueva',
         label: 'Nueva venta',
         icon: ShoppingCart,
         roles: ['admin', 'vendedor'],
@@ -67,7 +67,7 @@ export const navGroups: NavGroup[] = [
         href: '/stock',
         label: 'Stock',
         icon: Warehouse,
-        roles: ['admin'],
+        roles: ['admin', 'vendedor'],
       },
       {
         href: '/reportes',

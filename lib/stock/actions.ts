@@ -130,7 +130,10 @@ export async function obtenerHistorialVariante(
   varianteId: string,
   sucursalId: string,
 ): Promise<HistorialResult> {
-  await requireAuth(['ADMIN']);
+  // El historial por variante no expone costos, así que el vendedor también
+  // puede consultarlo desde el modal de /stock. La defensa contra ajustes/
+  // ingresos sigue restringida en sus respectivas actions (admin only).
+  await requireAuth(['ADMIN', 'VENDEDOR']);
   try {
     const items = await getMovimientosVariante(varianteId, sucursalId, 20);
     return {

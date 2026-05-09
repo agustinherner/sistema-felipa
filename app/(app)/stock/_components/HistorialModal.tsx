@@ -10,9 +10,11 @@ import type { StockFila } from './StockTable';
 export function HistorialModal({
   fila,
   onClose,
+  verHistorialCompleto,
 }: {
   fila: StockFila;
   onClose: () => void;
+  verHistorialCompleto: boolean;
 }) {
   const [items, setItems] = useState<HistorialMovimientoView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -138,9 +140,11 @@ export function HistorialModal({
           </div>
         </div>
 
-        <p className="mt-3 text-xs text-muted-foreground">
-          Para ver el historial completo, ir a Movimientos.
-        </p>
+        {verHistorialCompleto && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Para ver el historial completo, ir a Movimientos.
+          </p>
+        )}
 
         <div className="mt-4 flex justify-end">
           <Button type="button" variant="outline" onClick={onClose}>
