@@ -4,7 +4,11 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser, requireAuth } from '@/lib/auth/session';
 import { getTurnoAbierto } from '@/lib/turnos/queries';
-import { buscarProductoOVariante } from './queries';
+import {
+  buscarProductoOVariante,
+  obtenerVentaDetalle,
+  type VentaDetalle,
+} from './queries';
 import { crearVentaCore } from './core';
 import { fail, type ActionResult } from './types';
 
@@ -72,4 +76,29 @@ export async function crearVenta(
     revalidatePath('/stock');
   }
   return result;
+}
+
+const DetalleVentaSchema = z.object({
+  ventaId: z.string().min(1, 'ventaId requerido'),
+});
+
+export async function obtenerDetalleVentaAction(
+  rawInput: unknown,
+): Promise<ActionResult<{ venta: VentaDetalle }>> {
+  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+
+  const parsed = DetalleVentaSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return fail(parsed.error.issues.map((i) => i.message));
+  }
+
+  const venta = await obtenerVentaDetalle(parsed.data.ventaId);
+  if (!venta) return fail(['Venta no encontrada']);
+
+  const esAdmin = user.role === 'admin';
+  if (!esAdmin && venta.usuarioId !== user.id) {
+    return fail(['No autorizado']);
+  }
+
+  return { ok: true, venta };
 }

@@ -2,6 +2,241 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { precioEfectivo } from '@/lib/db/precio';
 
+export const VENTAS_PAGE_SIZE = 50;
+
+export type MetodoPagoVenta = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEBITO' | 'CREDITO';
+
+export type MetodoPagoItem = {
+  metodo: MetodoPagoVenta;
+  monto: number;
+};
+
+export type VentaListItem = {
+  id: string;
+  codigoCorto: string;
+  creadaEn: string;
+  usuarioId: string;
+  usuarioNombre: string;
+  metodosPago: MetodoPagoItem[];
+  subtotal: number;
+  descuentoTotal: number;
+  total: number;
+  aplicaDescuento: boolean;
+};
+
+export type ListarVentasParams = {
+  sucursalId: string;
+  usuarioId?: string;
+  fechaDesde?: Date;
+  fechaHasta?: Date;
+  metodoPago?: MetodoPagoVenta;
+  page: number;
+};
+
+export type ListarVentasResult = {
+  ventas: VentaListItem[];
+  hayMas: boolean;
+};
+
+function parseMetodosPago(value: unknown): MetodoPagoItem[] {
+  if (!Array.isArray(value)) return [];
+  const out: MetodoPagoItem[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as { metodo?: unknown; monto?: unknown };
+    const metodo = r.metodo;
+    const monto = r.monto;
+    if (
+      (metodo === 'EFECTIVO' ||
+        metodo === 'TRANSFERENCIA' ||
+        metodo === 'DEBITO' ||
+        metodo === 'CREDITO') &&
+      (typeof monto === 'number' || typeof monto === 'string')
+    ) {
+      const n = typeof monto === 'number' ? monto : Number(monto);
+      if (Number.isFinite(n)) out.push({ metodo, monto: n });
+    }
+  }
+  return out;
+}
+
+export async function listarVentas(
+  params: ListarVentasParams,
+): Promise<ListarVentasResult> {
+  const {
+    sucursalId,
+    usuarioId,
+    fechaDesde,
+    fechaHasta,
+    metodoPago,
+    page,
+  } = params;
+
+  const pageNum = Math.max(1, Math.floor(page) || 1);
+  const take = VENTAS_PAGE_SIZE + 1;
+  const skip = (pageNum - 1) * VENTAS_PAGE_SIZE;
+
+  const where: Prisma.VentaWhereInput = { sucursalId };
+  if (usuarioId) where.usuarioId = usuarioId;
+  if (fechaDesde || fechaHasta) {
+    where.creadaEn = {};
+    if (fechaDesde) where.creadaEn.gte = fechaDesde;
+    if (fechaHasta) where.creadaEn.lte = fechaHasta;
+  }
+  if (metodoPago) {
+    where.metodosPago = {
+      array_contains: [{ metodo: metodoPago }],
+    };
+  }
+
+  const rows = await prisma.venta.findMany({
+    where,
+    orderBy: { creadaEn: 'desc' },
+    take,
+    skip,
+    select: {
+      id: true,
+      codigoCorto: true,
+      creadaEn: true,
+      usuarioId: true,
+      subtotal: true,
+      descuentoTotal: true,
+      total: true,
+      aplicaDescuento: true,
+      metodosPago: true,
+      usuario: { select: { nombre: true } },
+    },
+  });
+
+  const hayMas = rows.length > VENTAS_PAGE_SIZE;
+  const sliced = hayMas ? rows.slice(0, VENTAS_PAGE_SIZE) : rows;
+
+  const ventas: VentaListItem[] = sliced.map((v) => ({
+    id: v.id,
+    codigoCorto: v.codigoCorto,
+    creadaEn: v.creadaEn.toISOString(),
+    usuarioId: v.usuarioId,
+    usuarioNombre: v.usuario.nombre,
+    metodosPago: parseMetodosPago(v.metodosPago),
+    subtotal: Number(v.subtotal),
+    descuentoTotal: Number(v.descuentoTotal),
+    total: Number(v.total),
+    aplicaDescuento: v.aplicaDescuento,
+  }));
+
+  return { ventas, hayMas };
+}
+
+export type VentaDetalleItem = {
+  id: string;
+  varianteId: string;
+  productoNombre: string;
+  varianteNombre: string;
+  esVarianteUnicaImplicita: boolean;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+};
+
+export type VentaDetalle = {
+  id: string;
+  codigoCorto: string;
+  creadaEn: string;
+  usuarioId: string;
+  usuarioNombre: string;
+  subtotal: number;
+  descuentoTotal: number;
+  total: number;
+  aplicaDescuento: boolean;
+  metodosPago: MetodoPagoItem[];
+  whatsappCliente: string | null;
+  turno: { aperturaEn: string; cierreEn: string | null } | null;
+  items: VentaDetalleItem[];
+};
+
+function esNombreVarianteUnica(nombre: string): boolean {
+  return nombre === 'Única' || nombre === 'Único';
+}
+
+export async function obtenerVentaDetalle(
+  ventaId: string,
+): Promise<VentaDetalle | null> {
+  const v = await prisma.venta.findUnique({
+    where: { id: ventaId },
+    select: {
+      id: true,
+      codigoCorto: true,
+      creadaEn: true,
+      usuarioId: true,
+      subtotal: true,
+      descuentoTotal: true,
+      total: true,
+      aplicaDescuento: true,
+      metodosPago: true,
+      whatsappCliente: true,
+      turnoId: true,
+      usuario: { select: { nombre: true } },
+      turno: { select: { aperturaEn: true, cierreEn: true } },
+      items: {
+        select: {
+          id: true,
+          varianteId: true,
+          cantidad: true,
+          precioUnitario: true,
+          subtotal: true,
+          variante: {
+            select: {
+              nombre: true,
+              producto: { select: { nombre: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!v) return null;
+
+  return {
+    id: v.id,
+    codigoCorto: v.codigoCorto,
+    creadaEn: v.creadaEn.toISOString(),
+    usuarioId: v.usuarioId,
+    usuarioNombre: v.usuario.nombre,
+    subtotal: Number(v.subtotal),
+    descuentoTotal: Number(v.descuentoTotal),
+    total: Number(v.total),
+    aplicaDescuento: v.aplicaDescuento,
+    metodosPago: parseMetodosPago(v.metodosPago),
+    whatsappCliente: v.whatsappCliente,
+    turno: v.turno
+      ? {
+          aperturaEn: v.turno.aperturaEn.toISOString(),
+          cierreEn: v.turno.cierreEn ? v.turno.cierreEn.toISOString() : null,
+        }
+      : null,
+    items: v.items.map((i) => ({
+      id: i.id,
+      varianteId: i.varianteId,
+      productoNombre: i.variante.producto.nombre,
+      varianteNombre: i.variante.nombre,
+      esVarianteUnicaImplicita: esNombreVarianteUnica(i.variante.nombre),
+      cantidad: i.cantidad,
+      precioUnitario: Number(i.precioUnitario),
+      subtotal: Number(i.subtotal),
+    })),
+  };
+}
+
+export async function listarUsuariosDeSucursal(
+  sucursalId: string,
+): Promise<{ id: string; nombre: string }[]> {
+  return prisma.user.findMany({
+    where: { sucursalId },
+    orderBy: { nombre: 'asc' },
+    select: { id: true, nombre: true },
+  });
+}
+
 export type ResultadoBusquedaVariante = {
   varianteId: string;
   nombreCompleto: string;
