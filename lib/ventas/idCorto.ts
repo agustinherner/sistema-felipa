@@ -1,19 +1,7 @@
 import type { Prisma } from '@prisma/client';
 
-// TODO: Sprint Felipa 2 — multisucursal. Cuando se agregue Sucursal.codigo,
-// derivar el prefijo desde ahí en vez de inferirlo del nombre o caer al default.
-export const CODIGO_SUCURSAL_DEFAULT = 'F1';
-
-/**
- * Si el nombre de la sucursal termina en un número (ej. "Felipa 1", "Sucursal 2"),
- * usa "F<n>". Sino retorna el default.
- */
-function prefijoDesdeNombre(nombre: string | null | undefined): string {
-  if (!nombre) return CODIGO_SUCURSAL_DEFAULT;
-  const match = nombre.match(/(\d+)\s*$/);
-  if (match) return `F${match[1]}`;
-  return CODIGO_SUCURSAL_DEFAULT;
-}
+// TODO: reemplazar por Sucursal.codigo cuando se soporte Felipa 2.
+const PREFIJO_SUCURSAL_DEFAULT = 'F1';
 
 function ddmm(date: Date): string {
   const dd = String(date.getDate()).padStart(2, '0');
@@ -22,7 +10,7 @@ function ddmm(date: Date): string {
 }
 
 /**
- * Genera el código corto de la venta con formato `{CODIGO}-{DDMM}-{NNN}`.
+ * Genera el código corto de la venta con formato `{PREFIJO}-{DDMM}-{NNN}`.
  * NNN es el correlativo del día por sucursal (count de ventas hoy + 1).
  *
  * Recibe el `tx` para que el count y el INSERT siguiente vivan en la misma
@@ -39,12 +27,6 @@ export async function generarCodigoCortoVenta(
   fecha: Date,
   tx: Prisma.TransactionClient,
 ): Promise<string> {
-  const sucursal = await tx.sucursal.findUnique({
-    where: { id: sucursalId },
-    select: { nombre: true },
-  });
-  const prefijo = prefijoDesdeNombre(sucursal?.nombre);
-
   const inicioDia = new Date(fecha);
   inicioDia.setHours(0, 0, 0, 0);
   const finDia = new Date(inicioDia);
@@ -58,5 +40,5 @@ export async function generarCodigoCortoVenta(
   });
 
   const correlativo = String(ventasHoy + 1).padStart(3, '0');
-  return `${prefijo}-${ddmm(fecha)}-${correlativo}`;
+  return `${PREFIJO_SUCURSAL_DEFAULT}-${ddmm(fecha)}-${correlativo}`;
 }
