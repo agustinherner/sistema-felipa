@@ -34,11 +34,12 @@ export async function getTurnoOlvidado(userId: string): Promise<Turno | null> {
  * Suma el monto en efectivo de todas las ventas del turno.
  * Usado en el cierre para calcular efectivoEsperadoCierre.
  *
- * Estructura de Venta.metodosPago (ver prisma/seed.ts):
- *   [{ metodo: 'efectivo' | 'transferencia' | 'débito' | 'crédito', monto: number }]
- * Si una venta no tiene un item con metodo === 'efectivo', suma 0.
- * Si el JSON no matchea la forma esperada (caso raro de data corrupta), suma 0
- * para esa venta — no rompe el cierre.
+ * Estructura de Venta.metodosPago:
+ *   - Sprint 6.0 (seed): [{ metodo: 'efectivo' | 'transferencia' | ..., monto }]
+ *   - Sprint 6.1 (nueva venta): [{ metodo: 'EFECTIVO' | 'TRANSFERENCIA' | ..., monto }]
+ * Comparamos case-insensitive para soportar ambas formas hasta que se migren
+ * los datos viejos. Si el JSON no matchea la forma esperada, suma 0 — no rompe
+ * el cierre.
  */
 export async function calcularEfectivoVendidoEnTurno(
   turnoId: string,
@@ -52,7 +53,7 @@ export async function calcularEfectivoVendidoEnTurno(
     const parsed = MetodosPagoSchema.safeParse(venta.metodosPago);
     if (!parsed.success) return acc;
     const enEfectivo = parsed.data
-      .filter((m) => m.metodo === 'efectivo')
+      .filter((m) => m.metodo.toLowerCase() === 'efectivo')
       .reduce((s, m) => s + m.monto, 0);
     return acc + enEfectivo;
   }, 0);

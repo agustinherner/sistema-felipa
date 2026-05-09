@@ -13,6 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { StockPermissions } from '@/lib/stock/permissions';
 import { BadgeStock } from './BadgeStock';
 import { AjusteModal } from './AjusteModal';
 import { HistorialModal } from './HistorialModal';
@@ -34,7 +35,13 @@ type ModalState =
   | { kind: 'historial'; fila: StockFila }
   | null;
 
-export function StockTable({ filas }: { filas: StockFila[] }) {
+export function StockTable({
+  filas,
+  permissions,
+}: {
+  filas: StockFila[];
+  permissions: StockPermissions;
+}) {
   const [modal, setModal] = useState<ModalState>(null);
   const [banner, setBanner] = useState<string | null>(null);
 
@@ -126,16 +133,18 @@ export function StockTable({ filas }: { filas: StockFila[] }) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="inline-flex gap-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setModal({ kind: 'ajuste', fila: f })
-                        }
-                      >
-                        Ajustar
-                      </Button>
+                      {permissions.ajustar && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setModal({ kind: 'ajuste', fila: f })
+                          }
+                        >
+                          Ajustar
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         size="sm"
@@ -155,7 +164,7 @@ export function StockTable({ filas }: { filas: StockFila[] }) {
         </Table>
       </div>
 
-      {modal?.kind === 'ajuste' && (
+      {modal?.kind === 'ajuste' && permissions.ajustar && (
         <AjusteModal
           fila={modal.fila}
           onClose={() => setModal(null)}
@@ -166,6 +175,7 @@ export function StockTable({ filas }: { filas: StockFila[] }) {
         <HistorialModal
           fila={modal.fila}
           onClose={() => setModal(null)}
+          verHistorialCompleto={permissions.verHistorialCompleto}
         />
       )}
     </div>

@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { getCategorias } from '@/lib/productos/queries';
 import { getStockListado } from '@/lib/stock/queries';
+import { permisosStock } from '@/lib/stock/permissions';
 import { StockTable, type StockFila } from './_components/StockTable';
 import { StockFilters } from './_components/StockFilters';
 import { StockPagination } from './_components/StockPagination';
@@ -35,7 +36,8 @@ export default async function StockPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  await requireAuth(['ADMIN']);
+  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const permissions = permisosStock(user.role);
 
   const q = parseString(searchParams.q);
   const categoriaId = parseString(searchParams.categoriaId);
@@ -107,18 +109,22 @@ export default async function StockPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/stock/movimientos">
-              <History className="h-4 w-4" />
-              Ver historial
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/stock/ingreso">
-              <PackagePlus className="h-4 w-4" />
-              Ingreso de mercadería
-            </Link>
-          </Button>
+          {permissions.verHistorialCompleto && (
+            <Button asChild variant="outline">
+              <Link href="/stock/movimientos">
+                <History className="h-4 w-4" />
+                Ver historial
+              </Link>
+            </Button>
+          )}
+          {permissions.ingresarMercaderia && (
+            <Button asChild>
+              <Link href="/stock/ingreso">
+                <PackagePlus className="h-4 w-4" />
+                Ingreso de mercadería
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
       <StockFilters
@@ -135,7 +141,7 @@ export default async function StockPage({
         </div>
       ) : (
         <>
-          <StockTable filas={filas} />
+          <StockTable filas={filas} permissions={permissions} />
           <StockPagination
             page={page}
             pageSize={PAGE_SIZE}
