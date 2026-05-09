@@ -8,6 +8,7 @@ import {
   getCategorias,
   getProductosListado,
 } from '@/lib/productos/queries';
+import { permisosProductos } from '@/lib/productos/permissions';
 import { ProductosFilters } from './_components/ProductosFilters';
 import { ProductosTable } from './_components/ProductosTable';
 import { ProductosPagination } from './_components/ProductosPagination';
@@ -33,8 +34,8 @@ export default async function ProductosPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  const user = await requireAuth(['admin', 'vendedor']);
-  const isAdmin = user.role === 'admin';
+  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const permissions = permisosProductos(user.role);
 
   const q = parseString(searchParams.q);
   const categoriaId = parseString(searchParams.categoriaId);
@@ -71,7 +72,7 @@ export default async function ProductosPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Productos</h1>
-        {isAdmin && (
+        {permissions.crear && (
           <Button asChild>
             <Link href="/productos/nuevo">
               <Plus className="h-4 w-4" />
@@ -91,11 +92,14 @@ export default async function ProductosPage({
         hayAlgunProducto || hayFiltros ? (
           <EmptyState kind="sin-resultados" />
         ) : (
-          <EmptyState kind="sin-productos" isAdmin={isAdmin} />
+          <EmptyState kind="sin-productos" isAdmin={permissions.crear} />
         )
       ) : (
         <>
-          <ProductosTable productos={listado.productos} role={user.role} />
+          <ProductosTable
+            productos={listado.productos}
+            permissions={permissions}
+          />
           <ProductosPagination
             page={page}
             pageSize={PAGE_SIZE}
