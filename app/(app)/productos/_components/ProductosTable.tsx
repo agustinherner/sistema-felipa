@@ -12,17 +12,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ProductoListadoItem } from '@/lib/productos/queries';
-import type { Role } from '@/lib/auth/types';
+import type { ProductoPermissions } from '@/lib/productos/permissions';
 
 export function ProductosTable({
   productos,
-  role,
+  permissions,
 }: {
   productos: ProductoListadoItem[];
-  role: Role;
+  permissions: ProductoPermissions;
 }) {
-  const isAdmin = role === 'admin';
-
   return (
     <div className="rounded-md border bg-background">
       <Table>
@@ -32,9 +30,11 @@ export function ProductosTable({
             <TableHead>Categoría</TableHead>
             <TableHead>Variantes</TableHead>
             <TableHead className="text-right">Precio</TableHead>
-            {isAdmin && <TableHead className="text-right">Costo</TableHead>}
+            {permissions.verCosto && (
+              <TableHead className="text-right">Costo</TableHead>
+            )}
             <TableHead className="text-right">Stock</TableHead>
-            {isAdmin && (
+            {permissions.editar && (
               <TableHead className="w-16 text-right">Acciones</TableHead>
             )}
           </TableRow>
@@ -85,7 +85,7 @@ export function ProductosTable({
                   )}
                 </span>
               </TableCell>
-              {isAdmin && (
+              {permissions.verCosto && (
                 <TableCell className="text-right tabular-nums">
                   {p.costoBaseFormateado}
                 </TableCell>
@@ -93,7 +93,7 @@ export function ProductosTable({
               <TableCell className="text-right tabular-nums">
                 {p.stockTotal}
               </TableCell>
-              {isAdmin && (
+              {permissions.editar && (
                 <TableCell className="text-right">
                   <Button
                     asChild
