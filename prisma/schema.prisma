@@ -122,6 +122,7 @@ model User {
   movimientos MovimientoStock[]
   sessions    Session[]
   accounts    Account[]
+  turnos      Turno[]
 
   @@index([sucursalId])
   @@map("user")
@@ -186,9 +187,11 @@ model Venta {
   metodosPago     Json
   whatsappCliente String?
   creadaEn        DateTime @default(now())
+  turnoId         String?
 
   sucursal    Sucursal          @relation(fields: [sucursalId], references: [id])
   usuario     User              @relation(fields: [usuarioId], references: [id])
+  turno       Turno?            @relation(fields: [turnoId], references: [id])
   items       ItemVenta[]
   movimientos MovimientoStock[]
 
@@ -230,4 +233,26 @@ model MovimientoStock {
   @@index([varianteId])
   @@index([sucursalId, creadoEn])
   @@index([ventaId])
+}
+
+model Turno {
+  id                       String    @id @default(cuid())
+
+  userId                   String
+  user                     User      @relation(fields: [userId], references: [id])
+
+  aperturaEn               DateTime  @default(now())
+  cierreEn                 DateTime?
+
+  efectivoInicialDeclarado Decimal   @db.Decimal(12, 2)
+  efectivoContadoCierre    Decimal?  @db.Decimal(12, 2)
+  efectivoEsperadoCierre   Decimal?  @db.Decimal(12, 2)
+  diferencia               Decimal?  @db.Decimal(12, 2)
+
+  observacionesCierre      String?
+
+  ventas                   Venta[]
+
+  @@index([userId, cierreEn])
+  @@map("turno")
 }

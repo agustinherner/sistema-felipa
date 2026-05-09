@@ -1,6 +1,9 @@
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { requireAuth } from '@/lib/auth/session';
+import { getTurnoOlvidado } from '@/lib/turnos/guards';
 
 export default async function AppLayout({
   children,
@@ -8,6 +11,12 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAuth();
+
+  const pathname = headers().get('x-pathname') ?? '';
+  if (pathname !== '/turno/cerrar') {
+    const turnoOlvidado = await getTurnoOlvidado(user.id);
+    if (turnoOlvidado) redirect('/turno/cerrar');
+  }
 
   return (
     <div className="flex h-screen w-full bg-muted/20">

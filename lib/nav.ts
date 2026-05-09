@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Clock,
   LayoutDashboard,
   Package,
   Receipt,
@@ -43,6 +44,12 @@ export const navGroups: NavGroup[] = [
         href: '/productos',
         label: 'Productos',
         icon: Package,
+        roles: ['admin', 'vendedor'],
+      },
+      {
+        href: '/turno/abrir',
+        label: 'Mi turno',
+        icon: Clock,
         roles: ['admin', 'vendedor'],
       },
     ],

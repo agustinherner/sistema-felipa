@@ -8,6 +8,8 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 
 **Principio rector**: _"Empezar simple es empezar bien"_ (sección 8 de la propuesta). Entregar algo usable antes que algo completo.
 
+**Hito intermedio (definido el 2026-05-08)**: antes del go-live formal hay un **demo a Felipa** desplegado en Vercel + Neon, para que el cliente vea el sistema funcionando y dé feedback con base real. El demo no incluye todas las features del MVP — incluye el flujo principal (login, ventas, stock, dashboard) suficiente para validar el rumbo.
+
 ---
 
 ## Sprint 0 — Setup técnico ✅ (2026-04-24)
@@ -40,7 +42,7 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 
 **Criterio de "listo"**: contexto operativo del local entendido al nivel necesario para no construir sobre supuestos. **Doc de requerimientos formal firmado por el cliente fue descartado** — el cliente confía en las decisiones técnicas y la documentación viva (`ESTADO.md` + `DECISIONES.md`) cubre la traza necesaria.
 
-**Duración estimada original**: 2-3 semanas. **Real**: Sprint 1 corre en paralelo con Sprint 2+ porque la observación in-situ no es bloqueante para arrancar el código.
+**Real**: Sprint 1 corre en paralelo con Sprint 2+ porque la observación in-situ no es bloqueante para arrancar el código.
 
 ---
 
@@ -48,117 +50,204 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 
 **Objetivo**: dejar la estructura completa del sistema en código real, con navegación y protección de rutas, sin lógica de negocio.
 
-**Cambio respecto al ROADMAP original**: el plan original era "wireframes en Figma + flujo navegable". Lo reemplazamos por scaffold directo en código (HTML estático con shadcn ya instalado) para evitar trabajo duplicado de diseñar en Figma y transcribir después. Ver `DECISIONES.md` (2026-04-27).
-
 **Entregables**:
 - Estructura de rutas con route groups: `(public)/login`, `(app)/<10 pantallas>`, `/health`.
-- Mock auth provisorio (cookie-based) en `lib/auth/mock.ts`. Reemplazado por Auth.js en Sprint 3 parte 2.
+- Mock auth provisorio (cookie-based) en `lib/auth/mock.ts`. Reemplazado en Sprint 3 parte 2.
 - Layouts con Sidebar (items según rol) + Header con role switcher dev-only y logout.
 - Login placeholder con dos botones para entrar como Admin o Vendedor.
 - 10 pantallas placeholder (P1–P10) con `requireAuth([...])` y código visible.
 - Build verde, `tsc --noEmit` sin errores.
 
-**Criterio de "listo"**: `npm run dev` levanta sin warnings, los 10 criterios de aceptación del prompt original pasan en navegador. **Cumplido y commiteado** (`a461b02`).
+**Criterio de "listo"**: `npm run dev` levanta sin warnings, los 10 criterios de aceptación del prompt original pasan en navegador. **Verificado**.
 
 ---
 
-## Sprint 3 — Schema de DB y autenticación
+## Sprint 3 parte 1 — Schema de DB y seed ✅ (2026-04-27)
 
-**Parte 1 ✅ (2026-04-27)** — schema Prisma con 9 modelos (Sucursal, Categoria, Producto, Variante, Stock, Usuario, Venta, ItemVenta, MovimientoStock), enums Rol y TipoMovimiento, migración aplicada, helpers en `lib/db/`, mock auth conectado a DB sin romper firma pública, seed idempotente con datos realistas de bazar. Build y tipos verdes (commit `034ae69`).
+**Objetivo**: armar los cimientos del backend.
 
-**Parte 2 — pendiente**:
-- Sistema de login real con Auth.js / NextAuth v5, reemplazando el mock.
-- bcrypt para `passwordHash` en Usuario.
-- Middleware de protección de rutas (la firma de `requireAuth()` se mantiene).
-- Revisión y resolución de las 5 vulnerabilidades de `npm audit` antes de instalar Auth.js.
+**Entregables**:
+- Schema Prisma con tablas del MVP (Producto, Variante, Stock, MovimientoStock, Venta, ItemVenta, Usuario, Sucursal, Categoría).
+- Producto con `precioBase` y `costoBase`. Variante con `precio` y `costo` opcionales (override). Stock y venta a nivel **variante**.
+- Migración inicial corriendo.
+- Seed con datos realistas de bazar (aromatizantes, marroquinería, juguetes, accesorios, acero quirúrgico, belleza personal).
+- Roles: enum `Rol` con `ADMIN` y `VENDEDOR`.
 
-**Criterio de "listo" parte 2**: puedo loguearme con un Admin y un Vendedor reales contra la DB con email + contraseña, y cada uno ve solo lo que le corresponde.
+**Commit**: `034ae69`.
 
-**Duración estimada parte 2**: 1-1.5 semanas. **Puede correr en paralelo con Sprint 4** o después — no es bloqueante para P5.
+**Nota retroactiva (2026-05-08)**: el modelo `Usuario` se renombró a `User` en Sprint 3 parte 2 para alinear con Better Auth. Ver `DECISIONES.md`.
 
 ---
 
-## Sprint 4 — Gestión de productos (P5)
+## Sprint 4 — Gestión de productos (P5) ✅ (2026-04-27)
 
 **Objetivo**: CRUD completo de productos con código de barras y variantes.
 
-**Fragmentación**:
+**Entregables**:
+- Listado con filtros (categoría, nombre, código).
+- Alta/edición con variantes y override de precio/costo.
+- Soft delete.
+- Modal de categoría inline.
+- Markup automático 115% (con flexibilidad).
 
-### P5.1 — Listado, búsqueda y vista de Vendedor
-
-- Pantalla `/productos` con tabla paginada.
-- Filtros: búsqueda por nombre y código, filtro por categoría.
-- Columnas para Admin: nombre, categoría, variantes (badge con cantidad), precio, costo, stock total, botón "Editar".
-- Columnas para Vendedor: nombre, categoría, variantes, precio, stock total. Sin costo, sin botón editar.
-- Stock total = suma de stock por variante en la sucursal del usuario logueado.
-
-### P5.2 — Alta, edición y manejo de variantes
-
-- Pantalla `/productos/nuevo` y `/productos/[id]/editar`.
-- Crear categoría inline (sin salir del flujo).
-- Variantes: agregar/quitar/editar dinámicamente. Toggle "esta variante tiene precio propio" para activar override.
-- Markup sugerido al cargar costo: precio = costo × 2.15 (115%). Campo de precio totalmente editable, sin tope ni warnings.
-- Soft delete (botón "Desactivar" que setea `activo = false`).
-- UX optimizada para cargar 200 productos a mano: atajos de teclado, "guardar y cargar otro", autocompletado de categorías existentes.
-
-**Criterio de "listo"**: Agustín puede cargar el catálogo real de Felipa en menos de 1 día.
-
-**Duración estimada total**: 2 semanas (P5.1 + P5.2).
-
-**Importación bulk Excel/CSV NO está en este Sprint** — fuera del MVP por decisión del 2026-04-27. Carga manual con buena UX hace los 200 productos en una tarde durante el inventario inicial.
+**Commit**: `006fd53` y previo.
 
 ---
 
-## Sprint 5 — Control de stock por sucursal (P6)
+## Sprint 5 — Control de stock por sucursal (P6) ✅ (2026-04-28)
 
 **Objetivo**: stock real, a nivel variante.
 
 **Entregables**:
-- Stock individual por variante.
-- Ajustes manuales con motivo obligatorio (rotura, robo, conteo, ingreso).
-- Historial de movimientos (`MovimientoStock` ya está modelado).
-- Modo bulk para ingreso de mercadería (cargar factura de proveedor y ajustar varias líneas de una).
-- _(Diferido al upgrade a Intermedio)_: alertas de stock bajo, transferencias entre sucursales (no aplica todavía por ser mono-sucursal).
+- **P6.1 — Vista de stock + ajustes individuales**: tabla agrupada por producto, filtros (búsqueda, categoría, stock bajo, stock negativo), 4 tipos de ajuste manual (Rotura, Robo/pérdida, Conteo, Devolución), modal de historial por variante. Stock negativo permitido con confirm.
+- **P6.2 — Ingreso de mercadería bulk**: pantalla `/stock/ingreso` con buscador unificado (código de barras agrega directo, nombre con autocompletado), datos opcionales (identificador, proveedor, observaciones), una sola transacción atómica para todas las líneas.
+- **P6.3 — Historial completo de movimientos**: pantalla `/stock/movimientos`, tabla cronológica con filtros (fecha, tipo, variante, usuario, motivo), running total con window function, paginación 50 filas, URL-based filters compartibles.
 
-**Criterio de "listo"**: al registrar una venta, el stock de la variante baja automáticamente.
+**Modelo**: `MovimientoStock.cantidad` como **delta signed** (positivo si suma, negativo si resta). `Stock.cantidad` es source of truth, cada ajuste = 1 INSERT en `MovimientoStock` + 1 UPDATE en `Stock` dentro de transacción Prisma.
 
-**Duración estimada**: 2 semanas.
+**Verificación**: 13/13 tests end-to-end con Claude Preview MCP. Build y typecheck verdes.
 
 ---
 
-## Sprint 6 — Registro de ventas (P2 + P3)
+## Sprint 3 parte 2 — Auth real + Gestión de Usuarios ✅ (2026-05-08)
 
-**Objetivo**: el flujo más usado del sistema funcionando fluido.
+**Objetivo**: reemplazar el mock auth por autenticación real con Better Auth, y permitir que el admin cree y administre cuentas.
+
+**Cambio respecto al plan original**: este sprint estaba originalmente planificado para "cerca del go-live". Se adelantó porque el demo a Felipa lo amerita (mock auth con dos botones daba mala impresión).
+
+**Branch**: `sprint-3-2/auth-real`. Squash-mergeada a `main` el 2026-05-08 (commit `5ce5414`). Branch local borrada, branch remota preservada como traza.
+
+**Entregables completos**:
+- [x] Resolución de las 5 vulnerabilidades de `npm audit` (4 resueltas, 1 documentada como deuda técnica). Commit `822012b`.
+- [x] Better Auth v1.6.9 instalado y configurado (plugins `username` + `nextCookies`, DB sessions con invalidación inmediata).
+- [x] Schema Prisma actualizado: rename `Usuario → User` (con `@@map("user")`), agrega `username` único, `email` (sintético `<username>@felipa.local`), `activo`, y tablas `Session`, `Account`, `Verification`. Custom fields `rol`, `activo`, `sucursalId` con `input: false`.
+- [x] Hash de passwords gestionado por Better Auth (scrypt) — bcrypt no se usa.
+- [x] Pantalla de login real (username + password) reemplazando los dos botones del mock.
+- [x] Logout real desde el header.
+- [x] `lib/auth/mock.ts` renombrado a `lib/auth/session.ts`. Cuerpo nuevo basado en `auth.api.getSession()`. Firma de `requireAuth([...])` y `getCurrentUser()` intacta. Las pantallas no se tocaron, solo find-replace de imports en 16 archivos.
+- [x] Hook `databaseHooks.session.create.before` rechaza login con `APIError('FORBIDDEN', ...)` si `activo = false`.
+- [x] Eliminación del role switcher dev-only del header.
+- [x] Pantalla **Gestión de Usuarios** (`/usuarios`, Admin only): listado con filtros (búsqueda, rol, estado), modales de alta / edición / reset password, switch in-line de activo. Defensa en profundidad (UI + server) para self-lockout.
+- [x] Seed actualizado: solo crea **un admin inicial** (`felipa` / `felipa1234`, rol `ADMIN`).
+- [x] Header muestra nombre del usuario logueado (no "Admin" / "Vendedor").
+
+**Decisiones tomadas durante este sprint** (todas en `DECISIONES.md`):
+- Librería: **Better Auth** (no Auth.js v5, no Supabase Auth).
+- Estrategia de sesión: **DB sessions** (no JWT) — por invalidación inmediata.
+- Hashing: **gestionado por Better Auth (scrypt)** — no bcrypt, no hash a mano.
+- Login: **username + password** (no email).
+- Cuentas: **se crean manualmente** desde Gestión de Usuarios (no en el seed).
+- Schema: **rename `Usuario → User`** con field mapping de `name`/`createdAt`/`updatedAt` a `nombre`/`creadoEn`/`actualizadoEn`.
+- Workflow: **branch dedicada por sprint** + squash merge a `main` al cerrar.
+- **Crear usuarios server-side**: `prisma.user.create` directo, no `signUpEmail` desde request context (pisa la sesión del admin vía `nextCookies`).
+- **Reset de password admin**: `hashPassword` de `better-auth/crypto` + write directo a `account.password`.
+
+**Plan de prompts a Code** (ejecutado):
+1. **Prompt 1 (`471d0e1`)**: install + schema + migración + seed.
+2. **Prompt 2 (`852a19c`)**: login form real + logout + integración con `requireAuth` + remoción del role switcher + hook `activo`.
+3. **Prompt 3 (`03406e6`)**: pantalla `/usuarios` con CRUD + reset password + activación/desactivación.
+
+**Verificación final**: build verde, tsc verde, smoke test de 10 pasos en navegador (login Admin, crear Vendedor, login Vendedor, edit, reset password, desactivar, último-admin guard, etc.).
+
+**Commit en main**: `5ce5414` (squash de los 3 commits anteriores).
+
+---
+
+## Sprint 6 — Turnos, Ventas y Demo a Felipa 🔄 (en curso)
+
+**Objetivo**: cerrar el flujo central del sistema (cierre de caja + ventas + historial + dashboard del vendedor) y dejarlo desplegado en Vercel + Neon para que Felipa lo pruebe.
+
+**Reorganización respecto al plan original**: el Sprint 6 original era "Ventas (P2 + P3)". Ahora abarca también el modelo de Turno y el cierre de caja simple, que el cliente pidió y va antes de las ventas (las ventas se asocian al turno abierto). Devoluciones y WhatsApp se mueven a Sprint 6.5 (post-demo).
+
+### Sub-sprint 6.0 — Modelo Turno + Cierre de caja simple ✅ (2026-05-09)
+
+**Entregables completos**:
+- Modelo `Turno` con `userId` (Admin o Vendedor), `aperturaEn`, `cierreEn`, `efectivoInicialDeclarado`, `efectivoContadoCierre`, `efectivoEsperadoCierre`, `diferencia`, `observacionesCierre`. Relación 1-N con `Venta` (`turnoId String?` nullable).
+- Partial unique index a nivel Postgres (`WHERE "cierreEn" IS NULL`) garantiza un solo turno abierto por user. Migración generada con `--create-only` y editada manualmente para agregar el SQL del index.
+- Server actions `abrirTurno` / `cerrarTurno` con defensa en profundidad (validación a nivel app + catch de `P2002` para race condition).
+- Helper `getTurnoOlvidado` con umbral 12 horas + middleware Next.js que expone `x-pathname` + guard en `(app)/layout.tsx` que redirige forzadamente a `/turno/cerrar` si hay turno olvidado.
+- Pantallas `/turno/abrir` y `/turno/cerrar` con resumen, breakdown por método de pago, diferencia live, alert + datetime-local cuando es olvidado.
+- Ítem "Mi turno" en sidebar (link estático a `/turno/abrir`, redirect dinámico hace el resto).
+- Helper `requireTurnoAbierto` exportado desde `lib/turnos/guards.ts` para uso en Sprint 6.1.
+
+**Branch**: `sprint-6-0/turnos-cierre-caja`. Squash-mergeada a `main` el 2026-05-09 (commit `<COMPLETAR-HASH>`).
+
+**Decisiones tomadas durante este sprint** (todas en `DECISIONES.md`):
+- Modelo aplica a Admin y Vendedor (campo `userId`, no `vendedorId`).
+- "Turno olvidado" = >12 horas abierto. Guard estricto vía middleware + layout (no banner lax).
+- Snapshot al cerrar (`efectivoEsperadoCierre` + `diferencia` como columnas, no on-the-fly).
+- Estado implícito (`cierreEn IS NULL = abierto`), sin enum.
+- Páginas dedicadas, no modales.
+- Concurrencia: partial unique index a nivel Postgres + catch P2002 en server action.
+- Convenciones del repo confirmadas: `prisma` desde `@/lib/db`, server actions con `rawInput: unknown` + `ActionResult<T>` + helper `fail()`.
+- Convención UX nueva: inputs vacíos en cálculos derivados muestran "—", no calculan contra 0.
+
+### Sub-sprint 6.1 — P2.1 Nueva venta + Stock para vendedor 🔄 (próximo)
+
+- Pantalla **Nueva venta** con búsqueda por código de barras (lector USB que emula teclado) o nombre.
+- Selección de variante cuando el producto tiene varias.
+- Carrito con múltiples productos y cantidades editables.
+- Métodos de pago: efectivo, transferencia, débito, crédito. Pagos mixtos (`Venta.metodosPago` como JSON).
+- Descuento automático del 10% al elegir efectivo o transferencia.
+- ID corto de venta (formato: `F1-DDMM-NNN`, ej: `F1-2604-127`).
+- **Asociación al turno abierto del vendedor**: al guardar la venta, se vincula automáticamente al `Turno` activo del vendedor.
+- Baja de stock atómica: 1 INSERT en `MovimientoStock` (tipo VENTA, cantidad negativa) + 1 UPDATE en `Stock` por cada ítem, todo en transacción.
+- **Stock para vendedor**: la pantalla `/stock` se modifica para que el vendedor la pueda ver en modo solo lectura, sin costo. Sin acceso a `/stock/movimientos` ni `/stock/ingreso`. Costo oculto a nivel HTML, no CSS.
+
+### Sub-sprint 6.2 — P3.1 Historial de ventas
+
+- Tabla cronológica con filtros (rango de fechas, método de pago, vendedor, estado).
+- Detalle de venta clickeable (líneas, totales, métodos de pago, vendedor, turno asociado, ID corto, fecha/hora).
+- Búsqueda por ID corto.
+- Paginación.
+
+### Sub-sprint 6.3 — P1 Dashboard del vendedor
+
+- Resumen de **turno actual** (si hay uno abierto): efectivo inicial declarado, ventas hechas hasta ahora, monto por método de pago, esperado de caja vs real (calculado en tiempo real).
+- **Mis turnos del mes**: tabla con cada turno cerrado del vendedor logueado — fecha, duración, ventas, monto vendido, diferencia de caja. Permite ver "cómo rindió" sin entrar a un sistema separado.
+- Atajo grande a "Nueva venta".
+- Si no hay turno abierto, prompt para abrir uno.
+
+### Hito 🚀 DEMO A FELIPA
+
+Después de cerrar 6.0 + 6.1 + 6.2 + 6.3, deploy del sistema a Vercel + Neon para que Felipa lo pruebe.
+
+**Tareas del deploy**:
+- Crear cuenta Neon, proyecto `felipa`, branch `demo` con seed de bazar realista.
+- Crear proyecto Vercel conectado al repo de GitHub.
+- Configurar env vars (`DATABASE_URL` con pooler, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, etc.).
+- Migraciones contra Neon (`prisma migrate deploy`).
+- Seed contra Neon una vez (con admin inicial + datos de bazar).
+- Verificación: login, apertura de turno, una venta completa, cierre de turno.
+- Compartir URL a Felipa.
+- **Comunicación al cliente**: avisarle explícitamente que (a) las devoluciones, comprobante por WhatsApp, dashboard del admin y reportes vienen en la próxima fase; (b) el fichero formal y el calendario de turnos quedan para post-MVP; (c) el sistema sigue conviviendo con SSL Soft Gescom para facturación AFIP.
+
+**Criterio de "listo"**: Felipa entra a la URL del demo desde su PC, se loguea con sus credenciales, abre un turno, registra una venta y la ve en el historial. Dashboard del vendedor le muestra el turno actual con datos reales.
+
+**Duración estimada total** (Sprint 6 hasta demo): 4-5 sesiones.
+
+---
+
+## Sprint 6.5 — Post-demo, pre-go-live
+
+**Objetivo**: features que quedaron fuera del demo pero son parte del MVP comprometido al cliente.
 
 **Entregables**:
-- Pantalla de nueva venta con búsqueda por código/nombre.
-- Selección de variante cuando el producto tiene varias.
-- Carrito con múltiples productos.
-- Métodos de pago: Visa, Mastercard, Maestro, Transferencia, Efectivo.
-- Pagos mixtos (efectivo + tarjeta).
-- Descuento automático del 10% al elegir efectivo o transferencia.
-- ID corto de venta (`generarCodigoVenta()` ya existe — formato `F1-DDMM-NNN`).
-- Comprobante por WhatsApp opcional (botón para enviar al cliente).
-- Búsqueda de venta por ID para devoluciones (≤30 días).
-- Historial de ventas (P3) con filtros por fecha, método de pago, vendedor.
+- **P2.2 — Devoluciones**: buscar venta por ID corto (≤30 días), devolución total o parcial, reversión de stock atómica.
+- **Comprobante por WhatsApp**: botón en la confirmación de venta que abre `wa.me/<numero>` con un mensaje pre-armado (ID corto, total, ítems).
+- **Ajustes de UX en función del feedback del demo**: lo que Felipa pida durante el período de prueba.
 
-**NO incluye en el MVP**:
-- Integración con AFIP (queda en sistema actual del cliente — SSL Soft Gescom).
-- Impresión de tickets físicos (se evalúa si el cliente compra impresora antes del go-live).
-
-**Criterio de "listo"**: una venta promedio se registra en menos de 30 segundos y el cliente puede identificar esa venta si vuelve a devolver dentro de 30 días.
-
-**Duración estimada**: 2-3 semanas.
+**Duración estimada**: 1-2 sesiones (depende del feedback del demo).
 
 ---
 
-## Sprint 7 — Reportes básicos (P7 + P8)
+## Sprint 7 — Dashboard del admin y reportes (P7 + P8)
 
-**Objetivo**: dar al dueño información útil del negocio.
+**Objetivo**: dar a Felipa información útil del negocio.
 
 **Entregables (Plan Base)**:
-- Dashboard (P7) con caja del día, productos más vendidos del mes, ventas por método de pago, alertas básicas.
-- Reportes (P8): ventas totales por día/semana/mes, productos más vendidos, ventas por método de pago, ventas por vendedor.
+- **P7 Dashboard del admin**: caja del día (suma de ventas + cierres de caja del día con diferencias), productos más vendidos del mes, ventas por método de pago, alertas básicas (turnos abiertos sin cerrar, stock negativo, ventas con devolución pendiente).
+- **P8 Reportes**: ventas totales por día/semana/mes, productos más vendidos, ventas por método de pago, ventas por vendedor, **horas trabajadas por vendedor** (suma de duración de turnos cerrados).
 - Exportación a CSV.
 
 **Diferido al upgrade a Intermedio**:
@@ -173,19 +262,19 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 
 ## Sprint 8 — Testing, implementación y capacitación (Etapa 4 de propuesta)
 
-**Objetivo**: que el sistema funcione en el local y el equipo lo use bien.
+**Objetivo**: que el sistema funcione en el local productivo y el equipo lo use bien.
 
 **Entregables**:
 - Testing manual exhaustivo de flujos críticos.
-- Playwright para los 3-4 flujos más críticos (login, nueva venta, baja de stock).
-- Deploy a servidor productivo.
-- Carga completa del catálogo real (manual, durante inventario inicial físico).
+- Playwright para los 3-4 flujos más críticos (login, apertura/cierre de turno, nueva venta, baja de stock).
+- Crear branch `prod` en Neon (paralela a `demo`) con seed limpio (solo admin inicial + categorías base).
+- Deploy productivo (mismo Vercel project con env vars apuntando a `prod`).
+- **Carga completa del catálogo real** de Felipa (manual con la UX de P5.2 — atajos, "guardar y cargar otro", autocompletado de markup).
 - **Inventario inicial físico** asistido: contar todo el local, cargar al sistema. Estimar 1-2 días con todo el equipo.
 - Verificación de hardware: PC del local con Chrome/Edge actualizado, lector de código de barras conectado y probado, impresora de tickets (si se compró) configurada.
-- Capacitación al equipo de Felipa (admin + vendedoras).
+- **Capacitación al equipo**: dueña + hijo + 2 empleadas. Énfasis en doble registro (sistema nuevo + facturación AFIP en SSL Soft Gescom existente) hasta integración futura.
 - Manual de usuario (PDF corto con capturas).
 - Período de acompañamiento de 1-2 semanas.
-- Capacitación con énfasis en doble registro (sistema nuevo + facturación AFIP existente en SSL Soft Gescom) hasta integración futura.
 
 **Criterio de "listo"**: el equipo de Felipa opera el sistema sin ayuda de Agustín durante 1 semana completa.
 
@@ -198,7 +287,11 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 Features que quedan para después del go-live, priorizadas según uso real:
 
 - **Reemplazo total del sistema de facturación actual** (SSL Soft Gescom) con integración AFIP nativa vía Web Service o wrapper (TusFacturas / iFactura / Facturante). Sin esto el doble registro persiste.
-- **Importación bulk Excel/CSV** de productos (si aparece un caso real: actualización masiva de precios, integración con sistema externo, etc.).
+- **Calendario de turnos** asignados por vendedora (vista mensual, gestión de ausencias, cambios de turno).
+- **Fichero formal de jornada laboral** (basado en los timestamps `aperturaEn` / `cierreEn` que ya guarda el modelo `Turno` desde el día 1) — comparación contra calendario para detectar llegadas tarde, reporte de horas, etc.
+- **Migración a Next 15 / 16** (cierra la deuda técnica de la vulnerabilidad pendiente).
+- **Migración a Prisma 7** (decisión diferida desde Sprint 0).
+- **Migración del error de "cuenta desactivada" a código de error** (deuda técnica del Sprint 3.2 prompt 2 — hoy se discrimina por string match contra el literal "deshabilitada"; cuando haya tiempo migrar a un código custom).
 - Historial de precios.
 - Alertas de stock bajo automáticas.
 - Dashboard con gráficos avanzados.
@@ -210,13 +303,21 @@ Cada una se evalúa y cotiza por separado. No se promete nada en el MVP.
 
 ---
 
-## Tareas transversales pendientes
+## Tareas transversales
 
 - [x] Migrar repo de local a GitHub privado ✅ 2026-04-24
-- [ ] Revisar 5 vulnerabilidades `npm audit` (1 moderate, 4 high) antes de Sprint 3 parte 2 / Auth.js
+- [x] Revisar 5 vulnerabilidades `npm audit` ✅ 2026-05-08 (4 resueltas, 1 documentada como deuda técnica — Next.js)
 - [ ] Tarde de observación in-situ en Felipa 1
-- [ ] Definir estrategia de backups de la DB
-- [ ] Definir hosting productivo
-- [ ] Definir dominio
+- [x] Definir hosting productivo ✅ 2026-05-08 — **Vercel**
+- [x] Definir DB de producción ✅ 2026-05-08 — **Neon** (con branches `demo` y `prod`)
+- [x] Definir librería de auth ✅ 2026-05-08 — **Better Auth con DB sessions, hash scrypt**
+- [x] Definir workflow de branches ✅ 2026-05-08 — **branch dedicada por sprint** + squash merge a `main` al cerrar
+- [x] Sprint 3.2 (auth real + gestión de usuarios) ✅ 2026-05-08 — squash commit `5ce5414` en main
+- [x] Sprint 6.0 (modelo Turno + cierre de caja simple) ✅ 2026-05-09 — squash commit `<COMPLETAR-HASH>` en main
+- [ ] Definir estrategia de backups de la DB (Neon tiene point-in-time restore en plan pago, en free tier evaluar `pg_dump` programado o aceptar el riesgo durante el demo)
+- [ ] Definir dominio (`felipa.vercel.app` para el demo está bien; dominio custom para go-live a definir con cliente)
 - [ ] Definir política de actualizaciones post-entrega
 - [ ] Decisión del cliente sobre compra de impresora de tickets
+- [ ] Comunicar al cliente antes del demo: alcance del demo, qué no entra al MVP (calendario, fichero, AFIP), doble registro durante el primer tiempo
+- [ ] Migración a Next 15/16 (deuda técnica abierta) — post-go-live
+- [ ] Migrar error de "cuenta desactivada" a código (deuda del Sprint 3.2 prompt 2)
