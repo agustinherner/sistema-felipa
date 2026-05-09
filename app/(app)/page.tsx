@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 
 export default async function AppIndexPage() {
   const user = await requireAuth();

@@ -1,4 +1,4 @@
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 
 export default async function NuevaVentaPage() {
   await requireAuth(['admin', 'vendedor']);

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 import { getCategorias } from '@/lib/productos/queries';
 import { ProductoForm } from '../_components/ProductoForm';
 import { nuevaVarianteVacia } from '@/lib/productos/helpers';

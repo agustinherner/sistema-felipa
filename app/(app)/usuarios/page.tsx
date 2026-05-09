@@ -1,14 +1,23 @@
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
+import {
+  getSucursalesActivas,
+  getUsuariosListado,
+} from '@/lib/usuarios/queries';
+import { UsuariosClient } from './_components/UsuariosClient';
 
 export default async function UsuariosPage() {
-  await requireAuth(['admin']);
+  const session = await requireAuth(['ADMIN']);
+
+  const [usuarios, sucursales] = await Promise.all([
+    getUsuariosListado(),
+    getSucursalesActivas(),
+  ]);
 
   return (
-    <div className="space-y-2">
-      <h1 className="text-2xl font-semibold">Usuarios</h1>
-      <p className="text-sm text-muted-foreground">
-        P9 — Pantalla pendiente. Se implementa en Sprint 3.
-      </p>
-    </div>
+    <UsuariosClient
+      usuarios={usuarios}
+      sucursales={sucursales}
+      currentUserId={session.id}
+    />
   );
 }

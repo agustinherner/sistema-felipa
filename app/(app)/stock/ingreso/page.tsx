@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { IngresoForm } from './_components/IngresoForm';
 

@@ -11,19 +11,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { MockUser } from '@/lib/auth/types';
-import { RoleSwitcher } from './RoleSwitcher';
+import { signOut } from '@/lib/auth/client';
+import type { SessionUser } from '@/lib/auth/types';
 
-const roleLabel: Record<MockUser['role'], string> = {
+const roleLabel: Record<SessionUser['role'], string> = {
   admin: 'Administradora',
   vendedor: 'Vendedora',
 };
 
-export function Header({ user, isDev }: { user: MockUser; isDev: boolean }) {
+export function Header({ user }: { user: SessionUser }) {
   const router = useRouter();
 
   async function logout() {
-    await fetch('/api/mock-auth', { method: 'DELETE' });
+    await signOut();
     router.replace('/login');
     router.refresh();
   }
@@ -32,7 +32,6 @@ export function Header({ user, isDev }: { user: MockUser; isDev: boolean }) {
     <header className="flex h-14 items-center justify-between border-b bg-background px-6">
       <div />
       <div className="flex items-center gap-3">
-        {isDev && <RoleSwitcher currentRole={user.role} />}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-2">

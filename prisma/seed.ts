@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient, Rol, TipoMovimiento } from '@prisma/client';
 import { generarCodigoVenta } from '../lib/db/codigoVenta';
+import { auth } from '../lib/auth/server';
 
 const prisma = new PrismaClient();
 
@@ -307,28 +308,52 @@ const categorias = [
   { nombre: 'Acero quirúrgico', descripcion: 'Aros, pulseras, anillos.' },
 ];
 
-const usuarios = [
-  {
-    email: 'felipa@felipa.local',
-    nombre: 'Felipa',
-    rol: Rol.ADMIN,
-  },
-  {
-    email: 'agustin@felipa.local',
-    nombre: 'Agustín',
-    rol: Rol.ADMIN,
-  },
-  {
-    email: 'andrea@felipa.local',
-    nombre: 'Andrea',
-    rol: Rol.VENDEDOR,
-  },
-  {
-    email: 'gisela@felipa.local',
-    nombre: 'Gisela',
-    rol: Rol.VENDEDOR,
-  },
-];
+const ADMIN_USERNAME = 'felipa';
+const ADMIN_PASSWORD = 'felipa1234';
+const ADMIN_NAME = 'Felipa';
+// Email sintético: el plugin username permite login sin email, pero el sign-up
+// programático de Better Auth sigue exigiendo el campo. Nunca se envían mails.
+const ADMIN_EMAIL = 'felipa@felipa.local';
+
+async function ensureAdmin(sucursalId: string): Promise<string> {
+  const existente = await prisma.user.findFirst({
+    where: { username: ADMIN_USERNAME },
+  });
+
+  if (existente) {
+    await prisma.user.update({
+      where: { id: existente.id },
+      data: {
+        rol: Rol.ADMIN,
+        activo: true,
+        sucursalId,
+        nombre: ADMIN_NAME,
+      },
+    });
+    return existente.id;
+  }
+
+  const result = await auth.api.signUpEmail({
+    body: {
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+      name: ADMIN_NAME,
+      username: ADMIN_USERNAME,
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: result.user.id },
+    data: {
+      rol: Rol.ADMIN,
+      activo: true,
+      sucursalId,
+      emailVerified: true,
+    },
+  });
+
+  return result.user.id;
+}
 
 async function main() {
   console.log('🌱 Seeding...');
@@ -345,26 +370,10 @@ async function main() {
   });
   console.log(`✔ Sucursal: ${sucursal.nombre}`);
 
-  // 2. Usuarios
-  for (const u of usuarios) {
-    await prisma.usuario.upsert({
-      where: { email: u.email },
-      update: {
-        nombre: u.nombre,
-        rol: u.rol,
-        sucursalId: sucursal.id,
-        activo: true,
-      },
-      create: {
-        email: u.email,
-        nombre: u.nombre,
-        rol: u.rol,
-        sucursalId: sucursal.id,
-        activo: true,
-      },
-    });
-  }
-  console.log(`✔ Usuarios: ${usuarios.length}`);
+  // 2. Admin único (creado vía Better Auth para que el hash de password lo
+  //    gestione la librería; el resto de usuarios se crean desde la UI).
+  const adminId = await ensureAdmin(sucursal.id);
+  console.log(`✔ Admin: ${ADMIN_USERNAME}`);
 
   // 3. Categorías
   const categoriasMap = new Map<string, string>();
@@ -379,14 +388,12 @@ async function main() {
   console.log(`✔ Categorías: ${categorias.length}`);
 
   // 4. Productos + variantes + stock
-  // Idempotencia: identificamos productos por nombre (no es único en schema, pero seedeamos siempre el mismo set).
   let totalVariantes = 0;
   let totalStocks = 0;
 
   for (const p of productos) {
     const categoriaId = categoriasMap.get(p.categoria) ?? null;
 
-    // Buscar producto existente por nombre exacto
     const existente = await prisma.producto.findFirst({
       where: { nombre: p.nombre },
     });
@@ -414,7 +421,6 @@ async function main() {
         });
 
     for (const v of p.variantes) {
-      // Identificamos variante por (productoId, nombre) — combo estable.
       const varExistente = await prisma.variante.findFirst({
         where: { productoId: producto.id, nombre: v.nombre },
       });
@@ -459,13 +465,13 @@ async function main() {
     `✔ Productos: ${productos.length}, Variantes: ${totalVariantes}, Stocks: ${totalStocks}`,
   );
 
-  // 5. Venta de ejemplo (idempotente: una sola, identificada por whatsappCliente o flag)
-  await seedVentaEjemplo(sucursal.id);
+  // 5. Venta de ejemplo (idempotente, atribuida al admin único)
+  await seedVentaEjemplo(sucursal.id, adminId);
 
   console.log('🌱 Seed OK');
 }
 
-async function seedVentaEjemplo(sucursalId: string) {
+async function seedVentaEjemplo(sucursalId: string, usuarioId: string) {
   const MARCA = 'SEED-EJEMPLO';
 
   const yaExiste = await prisma.venta.findFirst({
@@ -476,13 +482,11 @@ async function seedVentaEjemplo(sucursalId: string) {
     return;
   }
 
-  const andrea = await prisma.usuario.findUniqueOrThrow({
-    where: { email: 'andrea@felipa.local' },
-  });
-
   const variantes = await prisma.variante.findMany({
     where: {
-      producto: { is: { nombre: { in: ['Botella térmica 500ml', 'Vela aromática soja 200g'] } } },
+      producto: {
+        is: { nombre: { in: ['Botella térmica 500ml', 'Vela aromática soja 200g'] } },
+      },
     },
     include: { producto: true },
     take: 2,
@@ -518,7 +522,7 @@ async function seedVentaEjemplo(sucursalId: string) {
       data: {
         codigoCorto,
         sucursalId,
-        usuarioId: andrea.id,
+        usuarioId,
         subtotal,
         descuentoTotal: descuento,
         total,
@@ -546,7 +550,7 @@ async function seedVentaEjemplo(sucursalId: string) {
           tipo: TipoMovimiento.VENTA,
           cantidad: -it.cantidad,
           motivo: `Venta ${venta.codigoCorto}`,
-          usuarioId: andrea.id,
+          usuarioId,
           ventaId: venta.id,
         },
       });

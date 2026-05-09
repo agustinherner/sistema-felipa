@@ -374,7 +374,7 @@ export async function getMovimientosListado(
       FROM movs
       JOIN "Variante" v ON v.id = movs."varianteId"
       JOIN "Producto" p ON p.id = v."productoId"
-      JOIN "Usuario" u ON u.id = movs."usuarioId"
+      JOIN "user" u ON u.id = movs."usuarioId"
       LEFT JOIN "Venta" vt ON vt.id = movs."ventaId"
       WHERE ${filterSql}
       ORDER BY movs."creadoEn" DESC, movs.id DESC
@@ -423,7 +423,7 @@ export async function getVarianteEtiqueta(
 export async function getUsuariosActivos(): Promise<
   { id: string; nombre: string }[]
 > {
-  return prisma.usuario.findMany({
+  return prisma.user.findMany({
     where: { activo: true },
     orderBy: { nombre: 'asc' },
     select: { id: true, nombre: true },

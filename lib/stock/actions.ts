@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 import { AjusteSchema, IngresoBulkSchema } from './schemas';
 import {
   buscarVariantesParaIngreso,

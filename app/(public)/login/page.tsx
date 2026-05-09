@@ -1,67 +1,95 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { Role } from '@/lib/auth/types';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { signIn } from '@/lib/auth/client';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [pending, setPending] = useState<Role | null>(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  async function loginAs(role: Role) {
-    setPending(role);
-    try {
-      const res = await fetch('/api/mock-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
-      });
-      if (!res.ok) {
-        setPending(null);
-        return;
-      }
-      router.replace('/');
-      router.refresh();
-    } catch {
-      setPending(null);
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setPending(true);
+
+    const { error: err } = await signIn.username({
+      username: username.trim(),
+      password,
+    });
+
+    if (err) {
+      // El hook databaseHooks.session.create.before lanza APIError con mensaje
+      // explicito cuando activo=false; el resto se reduce a credenciales malas.
+      const isDisabled = err.message?.includes('deshabilitada') ?? false;
+      setError(
+        isDisabled
+          ? 'Tu cuenta está deshabilitada. Contactá al administrador.'
+          : 'Usuario o contraseña incorrectos.',
+      );
+      setPending(false);
+      return;
     }
+
+    router.replace('/');
+    router.refresh();
   }
 
   return (
-    <Card>
+    <Card className="w-full max-w-sm">
       <CardHeader className="space-y-1 text-center">
-        <p className="text-xs text-muted-foreground">
-          Login mock — Sprint 3 traerá login real
-        </p>
         <CardTitle className="text-2xl">Sistema Felipa</CardTitle>
-        <CardDescription>Elegí con qué rol querés ingresar</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <Button
-          size="lg"
-          onClick={() => loginAs('admin')}
-          disabled={pending !== null}
-        >
-          {pending === 'admin' ? 'Ingresando…' : 'Entrar como Admin (Felipa)'}
-        </Button>
-        <Button
-          size="lg"
-          variant="outline"
-          onClick={() => loginAs('vendedor')}
-          disabled={pending !== null}
-        >
-          {pending === 'vendedor'
-            ? 'Ingresando…'
-            : 'Entrar como Vendedor (Andrea)'}
-        </Button>
+      <CardContent>
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-2">
+            <Label htmlFor="username">Usuario</Label>
+            <Input
+              id="username"
+              name="username"
+              autoComplete="username"
+              autoFocus
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">Contraseña</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+          <Button type="submit" disabled={pending}>
+            {pending ? 'Ingresando…' : 'Ingresar'}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

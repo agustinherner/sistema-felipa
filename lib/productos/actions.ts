@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 import {
   CategoriaInputSchema,
   ProductoInputSchema,

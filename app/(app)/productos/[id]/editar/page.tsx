@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { getCategorias } from '@/lib/productos/queries';
 import { ProductoForm } from '../../_components/ProductoForm';
