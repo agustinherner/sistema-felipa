@@ -144,7 +144,7 @@ async function ejecutar() {
       if (!r.ok) {
         bad('Caso 1 esperaba ok', JSON.stringify(r.errores));
       } else {
-        ok('Caso 1 ok', `idCorto=${r.idCorto}`);
+        ok('Caso 1 ok', `codigoCorto=${r.codigoCorto}`);
         const v = await prisma.venta.findUniqueOrThrow({
           where: { id: r.ventaId },
           include: { items: true, movimientos: true },
@@ -243,7 +243,7 @@ async function ejecutar() {
         { userId: f.userId, sucursalId: f.sucursalId, turnoId: f.turnoAbiertoId },
       );
       if (r.ok) {
-        bad('Caso 4 esperaba fail', `pero retornó ok con idCorto=${r.idCorto}`);
+        bad('Caso 4 esperaba fail', `pero retornó ok con codigoCorto=${r.codigoCorto}`);
       } else if (!r.errores.some((e) => /total cobrado/i.test(e))) {
         bad('Caso 4: mensaje', `errores no incluyen "total cobrado": ${JSON.stringify(r.errores)}`);
       } else {
@@ -273,7 +273,7 @@ async function ejecutar() {
       }
     }
 
-    // Caso 6: dos ventas mismo día → idCorto NNN distintos.
+    // Caso 6: dos ventas mismo día → codigoCorto NNN distintos.
     {
       console.log('Caso 6: dos ventas mismo día → NNN distintos');
       const r1 = await crearVentaCore(
@@ -293,12 +293,12 @@ async function ejecutar() {
       if (!r1.ok || !r2.ok) {
         bad('Caso 6: ambas ventas debían crearse', JSON.stringify({ r1, r2 }));
       } else {
-        const nn1 = r1.idCorto.split('-').pop();
-        const nn2 = r2.idCorto.split('-').pop();
+        const nn1 = r1.codigoCorto.split('-').pop();
+        const nn2 = r2.codigoCorto.split('-').pop();
         if (nn1 === nn2) {
-          bad('Caso 6: NNN distintos', `r1=${r1.idCorto}, r2=${r2.idCorto}`);
+          bad('Caso 6: NNN distintos', `r1=${r1.codigoCorto}, r2=${r2.codigoCorto}`);
         } else {
-          ok('Caso 6: NNN distintos', `r1=${r1.idCorto}, r2=${r2.idCorto}`);
+          ok('Caso 6: NNN distintos', `r1=${r1.codigoCorto}, r2=${r2.codigoCorto}`);
         }
       }
     }

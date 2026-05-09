@@ -201,7 +201,7 @@ export function VentaNuevaForm() {
         return;
       }
       // Éxito: navegar a la pantalla de éxito.
-      router.push(`/ventas/exito?codigo=${encodeURIComponent(res.idCorto)}`);
+      router.push(`/ventas/exito?codigo=${encodeURIComponent(res.codigoCorto)}`);
     } catch (err) {
       setErrorCobro([
         err instanceof Error ? err.message : 'Error inesperado al cobrar',

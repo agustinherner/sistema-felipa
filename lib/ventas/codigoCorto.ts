@@ -17,10 +17,6 @@ function ddmm(date: Date): string {
  * transacción y reduzcan la ventana de colisión (la unicidad la garantiza
  * de todas formas el unique index de `Venta.codigoCorto`; el caller hace
  * retry sobre P2002).
- *
- * Nota de naming: el prompt se refiere al campo como `idCorto`, pero el
- * schema lo tiene como `codigoCorto` desde sprints anteriores. Mantenemos
- * el nombre de DB y exportamos el helper como `generarCodigoCortoVenta`.
  */
 export async function generarCodigoCortoVenta(
   sucursalId: string,

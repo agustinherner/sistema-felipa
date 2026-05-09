@@ -49,7 +49,7 @@ export async function buscarProducto(
 
 export async function crearVenta(
   rawInput: unknown,
-): Promise<ActionResult<{ ventaId: string; idCorto: string }>> {
+): Promise<ActionResult<{ ventaId: string; codigoCorto: string }>> {
   const user = await requireAuth(['ADMIN', 'VENDEDOR']);
 
   if (!user.sucursalId) {

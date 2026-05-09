@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { precioEfectivo } from '@/lib/db/precio';
-import { generarCodigoCortoVenta } from './idCorto';
+import { generarCodigoCortoVenta } from './codigoCorto';
 import { fail, type ActionResult, type CrearVentaContexto } from './types';
 
 const MetodoPagoEnum = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'DEBITO', 'CREDITO']);
@@ -57,7 +57,7 @@ function redondearADosDecimales(d: Prisma.Decimal): Prisma.Decimal {
 export async function crearVentaCore(
   rawInput: unknown,
   ctx: CrearVentaContexto,
-): Promise<ActionResult<{ ventaId: string; idCorto: string }>> {
+): Promise<ActionResult<{ ventaId: string; codigoCorto: string }>> {
   const parsed = CrearVentaSchema.safeParse(rawInput);
   if (!parsed.success) {
     return fail(parsed.error.issues.map((i) => i.message));
@@ -192,7 +192,7 @@ export async function crearVentaCore(
         return venta;
       });
 
-      return { ok: true, ventaId: result.id, idCorto: result.codigoCorto };
+      return { ok: true, ventaId: result.id, codigoCorto: result.codigoCorto };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
