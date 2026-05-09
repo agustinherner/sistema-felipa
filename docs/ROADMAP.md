@@ -153,7 +153,7 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 
 ---
 
-## Sprint 6 — Turnos, Ventas y Demo a Felipa 🔄 (en curso)
+## Sprint 6 — Turnos, Ventas y Demo a Felipa 🔄 (código completo, deploy pendiente)
 
 **Objetivo**: cerrar el flujo central del sistema (cierre de caja + ventas + historial + dashboard del vendedor) y dejarlo desplegado en Vercel + Neon para que Felipa lo pruebe.
 
@@ -170,7 +170,7 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 - Ítem "Mi turno" en sidebar (link estático a `/turno/abrir`, redirect dinámico hace el resto).
 - Helper `requireTurnoAbierto` exportado desde `lib/turnos/guards.ts` para uso en Sprint 6.1.
 
-**Branch**: `sprint-6-0/turnos-cierre-caja`. Squash-mergeada a `main` el 2026-05-09 (commit `<COMPLETAR-HASH>`).
+**Branch**: `sprint-6-0/turnos-cierre-caja`. Squash-mergeada a `main` el 2026-05-09 (commit `f3b6eab`).
 
 **Decisiones tomadas durante este sprint** (todas en `DECISIONES.md`):
 - Modelo aplica a Admin y Vendedor (campo `userId`, no `vendedorId`).
@@ -182,35 +182,51 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 - Convenciones del repo confirmadas: `prisma` desde `@/lib/db`, server actions con `rawInput: unknown` + `ActionResult<T>` + helper `fail()`.
 - Convención UX nueva: inputs vacíos en cálculos derivados muestran "—", no calculan contra 0.
 
-### Sub-sprint 6.1 — P2.1 Nueva venta + Stock para vendedor 🔄 (próximo)
+### Sub-sprint 6.1 — P2.1 Nueva venta + Stock para vendedor ✅ (2026-05-09)
 
-- Pantalla **Nueva venta** con búsqueda por código de barras (lector USB que emula teclado) o nombre.
-- Selección de variante cuando el producto tiene varias.
-- Carrito con múltiples productos y cantidades editables.
-- Métodos de pago: efectivo, transferencia, débito, crédito. Pagos mixtos (`Venta.metodosPago` como JSON).
-- Descuento automático del 10% al elegir efectivo o transferencia.
-- ID corto de venta (formato: `F1-DDMM-NNN`, ej: `F1-2604-127`).
-- **Asociación al turno abierto del vendedor**: al guardar la venta, se vincula automáticamente al `Turno` activo del vendedor.
-- Baja de stock atómica: 1 INSERT en `MovimientoStock` (tipo VENTA, cantidad negativa) + 1 UPDATE en `Stock` por cada ítem, todo en transacción.
-- **Stock para vendedor**: la pantalla `/stock` se modifica para que el vendedor la pueda ver en modo solo lectura, sin costo. Sin acceso a `/stock/movimientos` ni `/stock/ingreso`. Costo oculto a nivel HTML, no CSS.
+**Commit**: squash `27641de` en `main`. Branch `sprint-6-1/nueva-venta`.
 
-### Sub-sprint 6.2 — P3.1 Historial de ventas
+**Entregables completos**:
+- Pantalla `/ventas/nueva` funcional end-to-end: búsqueda dual (scanner USB + tipeo con debounce), carrito editable, panel de cobro con hasta 4 métodos, modal de cobro con warnings de stock negativo, página `/ventas/exito` con código corto.
+- Backend `lib/ventas/`: `crearVenta` + `crearVentaCore` con Zod + Decimal + transacción atómica + retry P2002. `buscarProducto` con auth. `codigoCorto` formato `F1-DDMM-NNN`.
+- Smoke `scripts/smoke-venta.ts`: 16/16 aserciones.
+- Refactor `/stock` para Vendedor: `permisosStock(role)`, renderizado condicional HTML, guard en server actions.
+- Fix: `requireTurnoAbierto` redirect en vez de throw. Rename `idCorto` → `codigoCorto`.
 
-- Tabla cronológica con filtros (rango de fechas, método de pago, vendedor, estado).
-- Detalle de venta clickeable (líneas, totales, métodos de pago, vendedor, turno asociado, ID corto, fecha/hora).
-- Búsqueda por ID corto.
-- Paginación.
+### Sub-sprint 6.2 — P3.1 Historial de ventas ✅ (2026-05-09)
 
-### Sub-sprint 6.3 — P1 Dashboard del vendedor
+**Commit**: `e2e9a00` en `main`. Branch `sprint-6-2/historial-ventas`.
 
-- Resumen de **turno actual** (si hay uno abierto): efectivo inicial declarado, ventas hechas hasta ahora, monto por método de pago, esperado de caja vs real (calculado en tiempo real).
-- **Mis turnos del mes**: tabla con cada turno cerrado del vendedor logueado — fecha, duración, ventas, monto vendido, diferencia de caja. Permite ver "cómo rindió" sin entrar a un sistema separado.
-- Atajo grande a "Nueva venta".
-- Si no hay turno abierto, prompt para abrir uno.
+**Entregables completos**:
+- Pantalla `/ventas` con listado paginado (50 filas), filtros por fecha/usuario/método de pago vía searchParams.
+- Modal de detalle clickeable: items con producto + variante, métodos de pago, totales con desglose de descuento, datos del turno.
+- Vendedor ve solo sus propias ventas (guard server-side en query y action). Admin ve todo con filtro por usuario.
+- `lib/ventas/permissions.ts`: `permisosVentas(rol)` → `{ verTodas, filtrarPorUsuario }`.
+- Botón "Ver historial" de `/ventas/exito` deja de ser 404.
 
-### Hito 🚀 DEMO A FELIPA
+### Sub-sprint 6.3 — P1 Dashboard del vendedor ✅ (2026-05-09)
 
-Después de cerrar 6.0 + 6.1 + 6.2 + 6.3, deploy del sistema a Vercel + Neon para que Felipa lo pruebe.
+**Commit**: squash `984ac94` en `main`. Branch `sprint-6-3/dashboard-vendedor`.
+
+**Entregables completos**:
+- Pantalla `/dashboard` con dos estados: turno abierto (resumen con stats y desglose por método) o sin turno (CTA para abrir).
+- Queries `obtenerResumenTurnoAbierto` y `listarTurnosDelMes` en `lib/turnos/queries.ts`. Agregación de ventas por método de pago en JS (JSON `metodosPago`). Helper `metodoCanonico` para normalizar variantes de casing.
+- Tabla de turnos cerrados del mes con cantidad de ventas, total vendido y diferencia coloreada.
+- Responsive: columnas Horario y Diferencia ocultas en mobile.
+- Botones "Nueva venta" y "Cerrar turno" linkean a las pantallas existentes.
+
+### Sub-sprint 6.4 — Refactor `/productos` para Vendedor ✅ (2026-05-09)
+
+**Commit**: squash `137bcdb` en `main`. Branch `sprint-6-4/productos-vendedor`.
+
+**Entregables completos**:
+- `lib/productos/permissions.ts`: `permisosProductos(rol)` → `{ verCosto, crear, editar, eliminar }`. Admin todo `true`, Vendedor todo `false`.
+- `/productos` abierta a VENDEDOR (`requireAuth(['ADMIN', 'VENDEDOR'])`). Columnas Costo y Acciones gateadas con permissions a nivel HTML. Botón "Nuevo producto" gateado con `permissions.crear`.
+- Rutas de escritura (`/productos/nuevo`, `/productos/[id]/editar`) y server actions ya tenían `requireAuth(['ADMIN'])` — sin cambios necesarios.
+
+### Hito 🚀 DEMO A FELIPA — listo para deploy
+
+Todos los sub-sprints pre-demo completados (6.0 a 6.4). Próximo paso: deploy.
 
 **Tareas del deploy**:
 - Crear cuenta Neon, proyecto `felipa`, branch `demo` con seed de bazar realista.
@@ -219,6 +235,7 @@ Después de cerrar 6.0 + 6.1 + 6.2 + 6.3, deploy del sistema a Vercel + Neon par
 - Migraciones contra Neon (`prisma migrate deploy`).
 - Seed contra Neon una vez (con admin inicial + datos de bazar).
 - Verificación: login, apertura de turno, una venta completa, cierre de turno.
+- Crear usuario Vendedor y verificar permisos (sin costos, sin acciones de admin, solo sus ventas).
 - Compartir URL a Felipa.
 - **Comunicación al cliente**: avisarle explícitamente que (a) las devoluciones, comprobante por WhatsApp, dashboard del admin y reportes vienen en la próxima fase; (b) el fichero formal y el calendario de turnos quedan para post-MVP; (c) el sistema sigue conviviendo con SSL Soft Gescom para facturación AFIP.
 
@@ -313,7 +330,12 @@ Cada una se evalúa y cotiza por separado. No se promete nada en el MVP.
 - [x] Definir librería de auth ✅ 2026-05-08 — **Better Auth con DB sessions, hash scrypt**
 - [x] Definir workflow de branches ✅ 2026-05-08 — **branch dedicada por sprint** + squash merge a `main` al cerrar
 - [x] Sprint 3.2 (auth real + gestión de usuarios) ✅ 2026-05-08 — squash commit `5ce5414` en main
-- [x] Sprint 6.0 (modelo Turno + cierre de caja simple) ✅ 2026-05-09 — squash commit `<COMPLETAR-HASH>` en main
+- [x] Sprint 6.0 (modelo Turno + cierre de caja simple) ✅ 2026-05-09 — commit `f3b6eab` en main
+- [x] Sprint 6.1 (nueva venta + stock para vendedor) ✅ 2026-05-09 — squash commit `27641de` en main
+- [x] Sprint 6.2 (historial de ventas) ✅ 2026-05-09 — commit `e2e9a00` en main
+- [x] Sprint 6.3 (dashboard del vendedor) ✅ 2026-05-09 — squash commit `984ac94` en main
+- [x] Sprint 6.4 (refactor /productos para vendedor) ✅ 2026-05-09 — squash commit `137bcdb` en main
+- [ ] **Deploy del demo a Vercel + Neon** — próxima tarea
 - [ ] Definir estrategia de backups de la DB (Neon tiene point-in-time restore en plan pago, en free tier evaluar `pg_dump` programado o aceptar el riesgo durante el demo)
 - [ ] Definir dominio (`felipa.vercel.app` para el demo está bien; dominio custom para go-live a definir con cliente)
 - [ ] Definir política de actualizaciones post-entrega

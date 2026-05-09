@@ -502,4 +502,34 @@ CREATE UNIQUE INDEX "turno_user_abierto_unique"
 
 ---
 
+---
+
+## 2026-05-09 · Vendedor ve solo sus propias ventas en el historial
+
+**Por qué**: en un bazar con empleadas, no hay razón operativa para que una vendedora vea las ventas de la otra. La dueña y su hijo (Admin) ven todo. Privacidad entre empleadas sin overhead de configuración.
+
+**Implementación**: la pantalla `/ventas` (Sprint 6.2) aplica la restricción en dos niveles:
+- **Query server-side** (`listarVentas`): cuando `permissions.verTodas === false`, fuerza `usuarioId = session.user.id` ignorando cualquier searchParam. El Vendedor no puede manipular la URL para ver ventas ajenas.
+- **Action de detalle** (`obtenerDetalleVentaAction`): guard adicional que verifica `venta.usuarioId === user.id` si no es Admin. Protege contra acceso directo por ID.
+- **UI**: el Vendedor no ve el filtro "Vendedor" ni la columna "Vendedor" en la tabla (no tiene sentido mostrar tu propio nombre en cada fila).
+
+**Patrón de permisos aplicado**: `lib/ventas/permissions.ts` con `permisosVentas(rol)` → `{ verTodas, filtrarPorUsuario }`. Mismo patrón que `permisosStock` del Sprint 6.1.
+
+**Alternativas descartadas**:
+- **Vendedor ve todas las ventas**: más permisivo, pero sin caso de uso real. Si la dueña quiere ver todo, entra con su cuenta Admin.
+
+---
+
+## 2026-05-09 · `obtenerHistorialVariante` abierto a Vendedor (cambio de contrato del Sprint 5)
+
+**Por qué**: en el Sprint 6.1 (refactor de `/stock` para Vendedor), se abrió la query `obtenerHistorialVariante` al rol Vendedor. La query solo expone movimientos de stock (tipo, cantidad, fecha, usuario, motivo) — no incluye datos de costo ni de precio. El Vendedor necesita ver el historial de movimientos de una variante para entender por qué el stock está en cierto valor (ej: "se rompieron 2 ayer").
+
+**Decisión**: acceso permitido sin restricciones. No se filtra por usuario (el Vendedor ve todos los movimientos de la variante, no solo los suyos) porque los movimientos de stock son operativos, no sensibles como las ventas.
+
+**Alternativas descartadas**:
+- **Mantener la query solo para Admin**: obliga al Vendedor a preguntar "por qué el stock de X dice -3" sin poder verificar por su cuenta. Carga innecesaria al Admin.
+- **Filtrar movimientos por usuario del Vendedor**: los movimientos de stock incluyen ingresos de mercadería y ajustes que hace el Admin. Si el Vendedor solo ve los suyos, el historial no cuadra con el stock actual.
+
+---
+
 _(Próximas decisiones van acá abajo, en orden cronológico.)_
