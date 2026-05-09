@@ -1,4 +1,4 @@
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 
 export default async function UsuariosPage() {
   await requireAuth(['admin']);

@@ -1,8 +1,12 @@
 import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { nextCookies } from 'better-auth/next-js';
 import { username } from 'better-auth/plugins';
 import { prisma } from '@/lib/db';
+
+export const ACCOUNT_DISABLED_MESSAGE =
+  'Tu cuenta está deshabilitada. Contactá al administrador.';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -38,6 +42,23 @@ export const auth = betterAuth({
         type: 'string',
         required: false,
         input: false,
+      },
+    },
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const u = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { activo: true },
+          });
+          if (u && !u.activo) {
+            throw new APIError('FORBIDDEN', {
+              message: ACCOUNT_DISABLED_MESSAGE,
+            });
+          }
+        },
       },
     },
   },

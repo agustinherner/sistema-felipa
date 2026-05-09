@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft, PackagePlus } from 'lucide-react';
 import { TipoMovimiento } from '@prisma/client';
 import { Button } from '@/components/ui/button';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import {
   getMovimientosListado,

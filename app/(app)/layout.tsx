@@ -1,6 +1,6 @@
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 
 export default async function AppLayout({
   children,
@@ -8,13 +8,12 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAuth();
-  const isDev = process.env.NODE_ENV === 'development';
 
   return (
     <div className="flex h-screen w-full bg-muted/20">
       <Sidebar role={user.role} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header user={user} isDev={isDev} />
+        <Header user={user} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

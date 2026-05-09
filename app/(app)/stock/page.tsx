@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { History, PackagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { requireAuth } from '@/lib/auth/mock';
+import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { getCategorias } from '@/lib/productos/queries';
 import { getStockListado } from '@/lib/stock/queries';
