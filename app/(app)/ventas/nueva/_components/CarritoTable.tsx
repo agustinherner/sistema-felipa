@@ -1,6 +1,7 @@
 'use client';
 
-import { AlertTriangle, Trash2 } from 'lucide-react';
+import { AlertTriangle, Sparkles, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -60,7 +61,19 @@ export function CarritoTable({
             return (
               <TableRow key={it.varianteId}>
                 <TableCell className="font-medium">
-                  {it.nombreCompleto}
+                  <span className="inline-flex items-center gap-2">
+                    {it.nombreCompleto}
+                    {it.esNuevo && (
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-amber-300 bg-amber-50 text-[10px] text-amber-700"
+                        title="Producto creado en esta venta (alta rápida). El admin lo va a completar después."
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        Nuevo
+                      </Badge>
+                    )}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatoPrecio(it.precioUnitario)}

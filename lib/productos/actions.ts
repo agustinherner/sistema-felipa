@@ -7,6 +7,7 @@ import { requireAuth } from '@/lib/auth/session';
 import {
   CategoriaInputSchema,
   ProductoInputSchema,
+  ProductoRapidoInputSchema,
   type CategoriaInput,
   type ProductoInput,
 } from './schemas';
@@ -230,6 +231,12 @@ export async function editarProducto(
         if (!cat) throw new ActionError(['La categoría seleccionada no existe.']);
       }
 
+      // Auto-desmarcar `incompleto` cuando el admin completó los datos
+      // mínimos que faltaban en una alta rápida (costo > 0 y categoría).
+      // Si no están completos, queda como estaba.
+      const datosCompletos =
+        (input.costoBase ?? 0) > 0 && !!input.categoriaId;
+
       await tx.producto.update({
         where: { id },
         data: {
@@ -238,6 +245,7 @@ export async function editarProducto(
           categoriaId: input.categoriaId ?? null,
           precioBase: toDecimalOrZero(input.precioBase),
           costoBase: toDecimalOrZero(input.costoBase),
+          ...(datosCompletos ? { incompleto: false } : {}),
         },
       });
 
@@ -396,6 +404,96 @@ export async function crearCategoria(
   } catch (err) {
     console.error('crearCategoria error:', err);
     return { ok: false, error: 'No se pudo crear la categoría.' };
+  }
+}
+
+export async function crearProductoRapido(
+  rawInput: unknown,
+): Promise<
+  ActionResult<{
+    productoId: string;
+    varianteId: string;
+    nombre: string;
+    precio: number;
+  }>
+> {
+  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+
+  const parsed = ProductoRapidoInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      errores: parsed.error.issues.map((i) => i.message),
+    };
+  }
+  const input = parsed.data;
+
+  const sucursalId = await resolveSucursalId(user.sucursalId);
+  if (!sucursalId) {
+    return {
+      ok: false,
+      errores: ['No hay sucursales activas para asignar el stock inicial.'],
+    };
+  }
+
+  try {
+    const out = await prisma.$transaction(async (tx) => {
+      const producto = await tx.producto.create({
+        data: {
+          nombre: input.nombre,
+          categoriaId: null,
+          precioBase: new Prisma.Decimal(input.precioVenta),
+          costoBase: new Prisma.Decimal(0),
+          activo: true,
+          incompleto: true,
+          creadoPorId: user.id,
+        },
+      });
+
+      const variante = await tx.variante.create({
+        data: {
+          productoId: producto.id,
+          nombre: 'Única',
+          codigoBarras: null,
+          precio: null,
+          costo: null,
+          atributos: Prisma.JsonNull,
+          activa: true,
+        },
+      });
+
+      await tx.stock.create({
+        data: {
+          varianteId: variante.id,
+          sucursalId,
+          cantidad: 1,
+        },
+      });
+
+      await tx.movimientoStock.create({
+        data: {
+          varianteId: variante.id,
+          sucursalId,
+          tipo: 'INGRESO',
+          cantidad: 1,
+          motivo: 'Alta rápida desde venta',
+          usuarioId: user.id,
+        },
+      });
+
+      return {
+        productoId: producto.id,
+        varianteId: variante.id,
+        nombre: producto.nombre,
+        precio: input.precioVenta,
+      };
+    });
+
+    revalidatePath('/productos');
+    return { ok: true, ...out };
+  } catch (err) {
+    console.error('crearProductoRapido error:', err);
+    return { ok: false, errores: [ERROR_GENERICO] };
   }
 }
 

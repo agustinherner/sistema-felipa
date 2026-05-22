@@ -7,9 +7,11 @@ import {
   useState,
   useTransition,
 } from 'react';
-import { AlertTriangle, Loader2, Search } from 'lucide-react';
+import { AlertTriangle, Loader2, Plus, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { buscarProducto, type ResultadoBusqueda } from '@/lib/ventas/actions';
+import { AltaRapidaModal } from './AltaRapidaModal';
 
 type Props = {
   onAgregar: (resultado: ResultadoBusqueda) => void;
@@ -28,6 +30,12 @@ export function BusquedaInput({ onAgregar }: Props) {
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  // Término que el usuario buscó y dio 0 resultados. Si no es null, mostramos
+  // el botón de alta rápida con ese texto pre-llenado.
+  const [terminoSinResultados, setTerminoSinResultados] = useState<string | null>(
+    null,
+  );
+  const [altaRapidaAbierta, setAltaRapidaAbierta] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,6 +52,7 @@ export function BusquedaInput({ onAgregar }: Props) {
     setDropdownAbierto(false);
     setMensaje(null);
     setHighlight(0);
+    setTerminoSinResultados(null);
     inputRef.current?.focus();
   }, []);
 
@@ -73,6 +82,7 @@ export function BusquedaInput({ onAgregar }: Props) {
         if (!result.ok) {
           setResultados([]);
           setDropdownAbierto(false);
+          setTerminoSinResultados(null);
           setMensaje(result.errores[0] ?? 'Error en la búsqueda');
           return;
         }
@@ -82,7 +92,7 @@ export function BusquedaInput({ onAgregar }: Props) {
             setMensaje('Producto no encontrado');
             setResultados([]);
             setDropdownAbierto(false);
-            setValor('');
+            setTerminoSinResultados(termTrim);
             inputRef.current?.focus();
             return;
           }
@@ -92,12 +102,16 @@ export function BusquedaInput({ onAgregar }: Props) {
           }
           setResultados(result.resultados);
           setDropdownAbierto(true);
+          setTerminoSinResultados(null);
           setHighlight(0);
           return;
         }
         // tipeo
         setResultados(result.resultados);
         setDropdownAbierto(result.resultados.length > 0);
+        setTerminoSinResultados(
+          result.resultados.length === 0 ? termTrim : null,
+        );
         setHighlight(0);
       });
     },
@@ -111,6 +125,7 @@ export function BusquedaInput({ onAgregar }: Props) {
     if (valor.trim().length < MIN_DEBOUNCE_LEN) {
       setResultados([]);
       setDropdownAbierto(false);
+      setTerminoSinResultados(null);
       return;
     }
     debounceRef.current = setTimeout(() => {
@@ -139,6 +154,7 @@ export function BusquedaInput({ onAgregar }: Props) {
     lastUserInputRef.current = e.target.value;
     setValor(e.target.value);
     setMensaje(null);
+    setTerminoSinResultados(null);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -194,6 +210,35 @@ export function BusquedaInput({ onAgregar }: Props) {
           {mensaje}
         </div>
       )}
+
+      {terminoSinResultados && !dropdownAbierto && !pending && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm">
+          <span className="text-muted-foreground">
+            ¿No está &ldquo;{terminoSinResultados}&rdquo; en el sistema?
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setAltaRapidaAbierta(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Agregar producto rápido
+          </Button>
+        </div>
+      )}
+
+      <AltaRapidaModal
+        open={altaRapidaAbierta}
+        nombreInicial={terminoSinResultados ?? valor.trim()}
+        onClose={() => setAltaRapidaAbierta(false)}
+        onCreado={(r) => {
+          setAltaRapidaAbierta(false);
+          onAgregar(r);
+          limpiar();
+        }}
+      />
+
 
       {dropdownAbierto && resultados.length > 0 && (
         <ul

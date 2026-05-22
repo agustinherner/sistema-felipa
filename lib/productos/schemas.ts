@@ -48,6 +48,20 @@ export const ProductoInputSchema = z.object({
 export type VarianteInput = z.infer<typeof VarianteInputSchema>;
 export type ProductoInput = z.infer<typeof ProductoInputSchema>;
 
+export const ProductoRapidoInputSchema = z.object({
+  nombre: z
+    .string()
+    .trim()
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(200, 'El nombre es demasiado largo'),
+  precioVenta: z
+    .number()
+    .finite('El precio debe ser un número válido')
+    .gt(0, 'El precio debe ser mayor a 0'),
+});
+
+export type ProductoRapidoInput = z.infer<typeof ProductoRapidoInputSchema>;
+
 export const CategoriaInputSchema = z.object({
   nombre: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres'),
   descripcion: z.preprocess(trimToNull, z.string().nullable().optional()),

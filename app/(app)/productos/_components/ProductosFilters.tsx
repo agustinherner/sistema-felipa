@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, X } from 'lucide-react';
+import { AlertCircle, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -13,10 +13,16 @@ export function ProductosFilters({
   categorias,
   initialQ,
   initialCategoriaId,
+  initialSoloIncompletos,
+  totalIncompletos,
+  mostrarFiltroIncompletos,
 }: {
   categorias: Categoria[];
   initialQ: string;
   initialCategoriaId: string;
+  initialSoloIncompletos: boolean;
+  totalIncompletos: number;
+  mostrarFiltroIncompletos: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -52,12 +58,23 @@ export function ProductosFilters({
     router.replace(`/productos?${params.toString()}`);
   }
 
+  function onToggleIncompletos() {
+    const params = new URLSearchParams(searchParams.toString());
+    if (initialSoloIncompletos) params.delete('incompletos');
+    else params.set('incompletos', '1');
+    params.delete('page');
+    router.replace(`/productos?${params.toString()}`);
+  }
+
   function limpiar() {
     setQ('');
     router.replace('/productos');
   }
 
-  const hayFiltros = q.trim().length > 0 || initialCategoriaId.length > 0;
+  const hayFiltros =
+    q.trim().length > 0 ||
+    initialCategoriaId.length > 0 ||
+    initialSoloIncompletos;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -88,6 +105,19 @@ export function ProductosFilters({
           ))}
         </Select>
       </div>
+      {mostrarFiltroIncompletos && totalIncompletos > 0 && (
+        <Button
+          type="button"
+          variant={initialSoloIncompletos ? 'default' : 'outline'}
+          size="sm"
+          onClick={onToggleIncompletos}
+          className="gap-1.5"
+          aria-pressed={initialSoloIncompletos}
+        >
+          <AlertCircle className="h-4 w-4" aria-hidden />
+          Incompletos ({totalIncompletos})
+        </Button>
+      )}
       {hayFiltros && (
         <Button
           type="button"

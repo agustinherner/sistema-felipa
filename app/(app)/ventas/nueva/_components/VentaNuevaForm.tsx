@@ -15,6 +15,7 @@ export type ItemCarrito = {
   precioUnitario: number;
   cantidad: number;
   stockActual: number;
+  esNuevo?: boolean;
 };
 
 export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEBITO' | 'CREDITO';
@@ -78,6 +79,7 @@ export function VentaNuevaForm() {
           precioUnitario: resultado.precioEfectivo,
           cantidad: 1,
           stockActual: resultado.stockActual,
+          esNuevo: resultado.esNuevo,
         },
       ];
     });

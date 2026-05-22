@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { getCategorias } from '@/lib/productos/queries';
@@ -92,6 +92,20 @@ export default async function EditarProductoPage({
       {!producto.activo && (
         <div className="rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm text-amber-900">
           Este producto está inactivo. Reactivalo desde el botón al pie.
+        </div>
+      )}
+
+      {producto.incompleto && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Producto creado por alta rápida.</p>
+            <p>
+              Completá costo y categoría (y agregá variantes si corresponde). Al
+              guardar con esos datos completos, se desmarca automáticamente como
+              incompleto.
+            </p>
+          </div>
         </div>
       )}
 

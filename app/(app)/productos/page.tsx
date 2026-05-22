@@ -39,18 +39,21 @@ export default async function ProductosPage({
 
   const q = parseString(searchParams.q);
   const categoriaId = parseString(searchParams.categoriaId);
+  const soloIncompletos = parseString(searchParams.incompletos) === '1';
   const page = parsePage(searchParams.page);
 
-  const [categorias, listado, hayAlgunProducto] = await Promise.all([
+  const [categorias, listado, hayAlgunProducto, totalIncompletos] = await Promise.all([
     getCategorias(),
     getProductosListado({
       q: q || undefined,
       categoriaId: categoriaId || undefined,
       sucursalId: user.sucursalId,
+      incompleto: soloIncompletos ? true : undefined,
       page,
       pageSize: PAGE_SIZE,
     }),
     prisma.producto.count(),
+    permissions.editar ? prisma.producto.count({ where: { incompleto: true } }) : 0,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(listado.total / PAGE_SIZE));
@@ -58,15 +61,17 @@ export default async function ProductosPage({
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (categoriaId) params.set('categoriaId', categoriaId);
+    if (soloIncompletos) params.set('incompletos', '1');
     if (totalPages > 1) params.set('page', String(totalPages));
     const qs = params.toString();
     redirect(qs ? `/productos?${qs}` : '/productos');
   }
 
-  const hayFiltros = q.length > 0 || categoriaId.length > 0;
+  const hayFiltros = q.length > 0 || categoriaId.length > 0 || soloIncompletos;
   const cleanSearchParams: Record<string, string> = {};
   if (q) cleanSearchParams.q = q;
   if (categoriaId) cleanSearchParams.categoriaId = categoriaId;
+  if (soloIncompletos) cleanSearchParams.incompletos = '1';
 
   return (
     <div className="space-y-6">
@@ -86,6 +91,9 @@ export default async function ProductosPage({
         categorias={categorias}
         initialQ={q}
         initialCategoriaId={categoriaId}
+        initialSoloIncompletos={soloIncompletos}
+        totalIncompletos={permissions.editar ? totalIncompletos : 0}
+        mostrarFiltroIncompletos={permissions.editar}
       />
 
       {listado.productos.length === 0 ? (

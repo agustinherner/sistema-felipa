@@ -55,13 +55,17 @@ model Producto {
   precioBase    Decimal  @db.Decimal(12, 2)
   costoBase     Decimal  @db.Decimal(12, 2)
   activo        Boolean  @default(true)
+  incompleto    Boolean  @default(false)
+  creadoPorId   String?
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
   categoria Categoria? @relation(fields: [categoriaId], references: [id])
   variantes Variante[]
+  creadoPor User?      @relation("ProductosCreados", fields: [creadoPorId], references: [id])
 
   @@index([categoriaId])
+  @@index([incompleto])
 }
 
 model Variante {
@@ -117,12 +121,13 @@ model User {
   creadoEn        DateTime @default(now())
   actualizadoEn   DateTime @updatedAt
 
-  sucursal    Sucursal?         @relation(fields: [sucursalId], references: [id])
-  ventas      Venta[]
-  movimientos MovimientoStock[]
-  sessions    Session[]
-  accounts    Account[]
-  turnos      Turno[]
+  sucursal         Sucursal?         @relation(fields: [sucursalId], references: [id])
+  ventas           Venta[]
+  movimientos      MovimientoStock[]
+  sessions         Session[]
+  accounts         Account[]
+  turnos           Turno[]
+  productosCreados Producto[]        @relation("ProductosCreados")
 
   @@index([sucursalId])
   @@map("user")

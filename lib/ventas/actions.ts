@@ -18,6 +18,7 @@ export type ResultadoBusqueda = {
   precioEfectivo: number;
   stockActual: number;
   tieneStock: boolean;
+  esNuevo?: boolean;
 };
 
 const TerminoSchema = z

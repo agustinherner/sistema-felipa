@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Pencil, Asterisk } from 'lucide-react';
+import { Pencil, Asterisk, AlertCircle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -55,6 +55,16 @@ export function ProductosTable({
                   {!p.activo && (
                     <Badge variant="secondary" className="text-[10px]">
                       Inactivo
+                    </Badge>
+                  )}
+                  {p.incompleto && (
+                    <Badge
+                      variant="outline"
+                      className="gap-1 border-amber-300 bg-amber-50 text-[10px] text-amber-700"
+                      title="Falta completar costo, categoría y/o variantes. Editá para completarlo."
+                    >
+                      <AlertCircle className="h-3 w-3" />
+                      Incompleto
                     </Badge>
                   )}
                 </div>

@@ -6,6 +6,7 @@ export type ProductoListadoItem = {
   id: string;
   nombre: string;
   activo: boolean;
+  incompleto: boolean;
   categoriaNombre: string | null;
   cantidadVariantes: number;
   tieneOverrides: boolean;
@@ -18,6 +19,7 @@ export type GetProductosListadoOpts = {
   q?: string;
   categoriaId?: string;
   sucursalId?: string | null;
+  incompleto?: boolean;
   page: number;
   pageSize: number;
 };
@@ -30,7 +32,7 @@ export type GetProductosListadoResult = {
 export async function getProductosListado(
   opts: GetProductosListadoOpts,
 ): Promise<GetProductosListadoResult> {
-  const { q, categoriaId, sucursalId, page, pageSize } = opts;
+  const { q, categoriaId, sucursalId, incompleto, page, pageSize } = opts;
 
   const qTrim = q?.trim();
   const where: Prisma.ProductoWhereInput = {};
@@ -52,6 +54,10 @@ export async function getProductosListado(
     where.categoriaId = categoriaId;
   }
 
+  if (incompleto !== undefined) {
+    where.incompleto = incompleto;
+  }
+
   const skip = Math.max(0, (page - 1) * pageSize);
 
   const [total, productos] = await Promise.all([
@@ -65,6 +71,7 @@ export async function getProductosListado(
         id: true,
         nombre: true,
         activo: true,
+        incompleto: true,
         precioBase: true,
         costoBase: true,
         categoria: { select: { nombre: true } },
@@ -97,6 +104,7 @@ export async function getProductosListado(
       id: p.id,
       nombre: p.nombre,
       activo: p.activo,
+      incompleto: p.incompleto,
       categoriaNombre: p.categoria?.nombre ?? null,
       cantidadVariantes: p.variantes.length,
       tieneOverrides,
