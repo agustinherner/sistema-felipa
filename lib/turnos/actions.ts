@@ -5,7 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth/session';
-import { getTurnoAbierto, calcularEfectivoVendidoEnTurno } from './queries';
+import {
+  getTurnoAbierto,
+  calcularEfectivoVendidoEnTurno,
+  calcularRetirosEnTurno,
+} from './queries';
 
 type ActionFail = { ok: false; errores: string[] };
 type ActionResult<T = unknown> = ({ ok: true } & T) | ActionFail;
@@ -97,8 +101,9 @@ export async function cerrarTurno(
   }
 
   const efectivoVendido = await calcularEfectivoVendidoEnTurno(turno.id);
+  const totalRetiros = await calcularRetirosEnTurno(turno.id);
   const efectivoEsperado =
-    Number(turno.efectivoInicialDeclarado) + efectivoVendido;
+    Number(turno.efectivoInicialDeclarado) + efectivoVendido - totalRetiros;
   const diferencia = parsed.data.efectivoContado - efectivoEsperado;
 
   await prisma.turno.update({
@@ -114,4 +119,43 @@ export async function cerrarTurno(
 
   revalidatePath('/');
   return { ok: true, turnoId: turno.id };
+}
+
+const RegistrarRetiroSchema = z.object({
+  monto: z.number().positive('El monto debe ser mayor a cero'),
+  motivo: z
+    .string()
+    .trim()
+    .min(3, 'El motivo debe tener al menos 3 caracteres')
+    .max(200, 'El motivo es demasiado largo'),
+});
+
+export async function registrarRetiroCaja(
+  rawInput: unknown,
+): Promise<ActionResult<{ movimientoId: string }>> {
+  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+
+  const parsed = RegistrarRetiroSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return fail(parsed.error.issues.map((i) => i.message));
+  }
+
+  const turno = await getTurnoAbierto(user.id);
+  if (!turno) {
+    return fail(['No tenés un turno abierto para registrar un retiro.']);
+  }
+
+  const movimiento = await prisma.movimientoCaja.create({
+    data: {
+      turnoId: turno.id,
+      usuarioId: user.id,
+      tipo: 'RETIRO',
+      monto: new Prisma.Decimal(parsed.data.monto),
+      motivo: parsed.data.motivo,
+    },
+  });
+
+  revalidatePath('/');
+  revalidatePath('/turno/cerrar');
+  return { ok: true, movimientoId: movimiento.id };
 }

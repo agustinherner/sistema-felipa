@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import {
   calcularEfectivoVendidoEnTurno,
   getTurnoAbierto,
+  obtenerRetirosTurno,
 } from '@/lib/turnos/queries';
 import { CerrarTurnoForm } from './cerrar-turno-form';
 
@@ -58,8 +59,10 @@ export default async function CerrarTurnoPage() {
   }
 
   const efectivoVendido = await calcularEfectivoVendidoEnTurno(turno.id);
+  const retiros = await obtenerRetirosTurno(turno.id);
+  const totalRetiros = retiros.reduce((s, r) => s + r.monto, 0);
   const efectivoInicial = Number(turno.efectivoInicialDeclarado);
-  const efectivoEsperado = efectivoInicial + efectivoVendido;
+  const efectivoEsperado = efectivoInicial + efectivoVendido - totalRetiros;
 
   const horasAbierto =
     (Date.now() - turno.aperturaEn.getTime()) / (1000 * 60 * 60);
@@ -73,6 +76,9 @@ export default async function CerrarTurnoPage() {
         cantidadVentas={ventas.length}
         montosPorMetodo={montosPorMetodo}
         totalVendido={totalVendido}
+        efectivoVendido={efectivoVendido}
+        retiros={retiros}
+        totalRetiros={totalRetiros}
         efectivoEsperado={efectivoEsperado}
         esTurnoOlvidado={esTurnoOlvidado}
         horasAbierto={horasAbierto}

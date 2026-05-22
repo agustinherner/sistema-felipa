@@ -2,6 +2,7 @@ import { requireAuth } from '@/lib/auth/session';
 import {
   listarTurnosDelMes,
   obtenerResumenTurnoAbierto,
+  obtenerRetirosTurno,
 } from '@/lib/turnos/queries';
 import { ResumenTurno } from './_components/ResumenTurno';
 import { SinTurno } from './_components/SinTurno';
@@ -33,6 +34,7 @@ export default async function DashboardPage() {
     obtenerResumenTurnoAbierto(user.id),
     listarTurnosDelMes(user.id, anio, mes),
   ]);
+  const retiros = resumen ? await obtenerRetirosTurno(resumen.id) : [];
 
   return (
     <div className="space-y-6">
@@ -43,7 +45,11 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {resumen ? <ResumenTurno resumen={resumen} /> : <SinTurno />}
+      {resumen ? (
+        <ResumenTurno resumen={resumen} retiros={retiros} />
+      ) : (
+        <SinTurno />
+      )}
 
       <TablaTurnosMes nombreMes={MESES[mes - 1]} turnos={turnosMes} />
     </div>

@@ -70,6 +70,52 @@ export async function calcularEfectivoVendidoEnTurno(
   }, 0);
 }
 
+/**
+ * Suma el monto total de los retiros de caja del turno.
+ * Usado en el cierre para descontar del efectivo esperado.
+ */
+export async function calcularRetirosEnTurno(
+  turnoId: string,
+): Promise<number> {
+  const agg = await prisma.movimientoCaja.aggregate({
+    where: { turnoId, tipo: 'RETIRO' },
+    _sum: { monto: true },
+  });
+  return Number(agg._sum.monto ?? 0);
+}
+
+export type RetiroTurno = {
+  id: string;
+  monto: number;
+  motivo: string;
+  creadoEn: string;
+  usuarioNombre: string;
+};
+
+/** Lista los retiros de caja del turno, ordenados por creadoEn ascendente. */
+export async function obtenerRetirosTurno(
+  turnoId: string,
+): Promise<RetiroTurno[]> {
+  const movs = await prisma.movimientoCaja.findMany({
+    where: { turnoId, tipo: 'RETIRO' },
+    orderBy: { creadoEn: 'asc' },
+    select: {
+      id: true,
+      monto: true,
+      motivo: true,
+      creadoEn: true,
+      usuario: { select: { nombre: true } },
+    },
+  });
+  return movs.map((m) => ({
+    id: m.id,
+    monto: Number(m.monto),
+    motivo: m.motivo,
+    creadoEn: m.creadoEn.toISOString(),
+    usuarioNombre: m.usuario.nombre,
+  }));
+}
+
 export type ResumenTurnoAbierto = {
   id: string;
   aperturaEn: string;
@@ -82,6 +128,7 @@ export type ResumenTurnoAbierto = {
     debito: number;
     credito: number;
   };
+  totalRetiros: number;
   efectivoEsperado: number;
 };
 
@@ -126,6 +173,7 @@ export async function obtenerResumenTurnoAbierto(
   }
 
   const efectivoInicial = Number(turno.efectivoInicialDeclarado);
+  const totalRetiros = await calcularRetirosEnTurno(turno.id);
 
   return {
     id: turno.id,
@@ -134,7 +182,9 @@ export async function obtenerResumenTurnoAbierto(
     cantidadVentas: ventas.length,
     totalVendido,
     ventasPorMetodo,
-    efectivoEsperado: efectivoInicial + ventasPorMetodo.efectivo,
+    totalRetiros,
+    efectivoEsperado:
+      efectivoInicial + ventasPorMetodo.efectivo - totalRetiros,
   };
 }
 

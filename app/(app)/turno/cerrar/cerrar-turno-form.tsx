@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { cerrarTurno } from '@/lib/turnos/actions';
+import type { RetiroTurno } from '@/lib/turnos/queries';
 
 type Props = {
   turnoAperturaEn: string;
@@ -29,6 +30,9 @@ type Props = {
     credito: number;
   };
   totalVendido: number;
+  efectivoVendido: number;
+  retiros: RetiroTurno[];
+  totalRetiros: number;
   efectivoEsperado: number;
   esTurnoOlvidado: boolean;
   horasAbierto: number;
@@ -72,6 +76,9 @@ export function CerrarTurnoForm({
   cantidadVentas,
   montosPorMetodo,
   totalVendido,
+  efectivoVendido,
+  retiros,
+  totalRetiros,
   efectivoEsperado,
   esTurnoOlvidado,
   horasAbierto,
@@ -177,6 +184,50 @@ export function CerrarTurnoForm({
               />
             </>
           )}
+
+          {retiros.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Row
+                  label={`Retiros durante el turno (${retiros.length})`}
+                  value={`−${fmtMoneda.format(totalRetiros)}`}
+                  strong
+                />
+                <ul className="space-y-1 rounded-md border bg-muted/30 p-2 text-xs">
+                  {retiros.map((r) => (
+                    <li
+                      key={r.id}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="min-w-0 truncate text-muted-foreground">
+                        {r.motivo}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-red-600">
+                        −{fmtMoneda.format(r.monto)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+
+          <Separator />
+          <div className="space-y-1 rounded-md border bg-muted/30 px-3 py-2 text-xs tabular-nums text-muted-foreground">
+            <p>
+              <span className="font-medium text-foreground">Esperado: </span>
+              Inicial {fmtMoneda.format(efectivoInicial)}
+              {' + '}Ventas efectivo {fmtMoneda.format(efectivoVendido)}
+              {totalRetiros > 0 && (
+                <> {' − '}Retiros {fmtMoneda.format(totalRetiros)}</>
+              )}
+              {' = '}
+              <span className="font-medium text-foreground">
+                {fmtMoneda.format(efectivoEsperado)}
+              </span>
+            </p>
+          </div>
         </CardContent>
       </Card>
 
