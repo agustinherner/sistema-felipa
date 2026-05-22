@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, X } from 'lucide-react';
 import { crearVenta, type ResultadoBusqueda } from '@/lib/ventas/actions';
@@ -41,6 +41,11 @@ export function VentaNuevaForm() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [cobrando, setCobrando] = useState(false);
   const [errorCobro, setErrorCobro] = useState<string[] | null>(null);
+  // Guard síncrono contra doble submit. `cobrando` se usa para feedback
+  // visual (disabled del botón) pero su update es async; entre el primer
+  // click y la propagación del disabled hay una ventana donde un segundo
+  // tap táctil llega al handler. El ref se setea en el mismo tick.
+  const submittingRef = useRef(false);
 
   // ---- Carrito ----
   const onAgregarAlCarrito = useCallback((resultado: ResultadoBusqueda) => {
@@ -178,6 +183,10 @@ export function VentaNuevaForm() {
   }, [cobrando]);
 
   const onConfirmarCobro = useCallback(async () => {
+    // Guard síncrono: si ya hay un submit en vuelo, ignorar el segundo tap.
+    // `cobrando` propaga async vía React; el ref es el guard real.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setCobrando(true);
     setErrorCobro(null);
     try {
@@ -197,16 +206,22 @@ export function VentaNuevaForm() {
       if (!res.ok) {
         setErrorCobro(res.errores);
         setModalAbierto(false);
+        submittingRef.current = false;
         setCobrando(false);
         return;
       }
-      // Éxito: navegar a la pantalla de éxito.
+      // Éxito: navegar a éxito. NO reseteamos el ref ni `cobrando`: queremos
+      // que cualquier tap residual mientras Next desmonta el form siga siendo
+      // ignorado. El ref se descarta cuando el componente se unmonta.
       router.push(`/ventas/exito?codigo=${encodeURIComponent(res.codigoCorto)}`);
     } catch (err) {
-      setErrorCobro([
-        err instanceof Error ? err.message : 'Error inesperado al cobrar',
-      ]);
+      // Nunca filtrar el mensaje crudo de Prisma/DB al cajero. Logueamos el
+      // error real (Vercel Function logs / consola del browser en dev) y
+      // mostramos un mensaje accionable.
+      console.error('[crearVenta] error inesperado:', err);
+      setErrorCobro(['No se pudo registrar la venta. Reintentá.']);
       setModalAbierto(false);
+      submittingRef.current = false;
       setCobrando(false);
     }
   }, [items, metodosPago, router]);
