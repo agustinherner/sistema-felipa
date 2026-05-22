@@ -1,8 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Ban, Loader2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Ban,
+  Loader2,
+  MessageCircle,
+  Undo2,
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,13 +21,18 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   anularVenta,
+  crearDevolucion,
   obtenerDetalleVentaAction,
 } from '@/lib/ventas/actions';
 import type {
   MetodoPagoItem,
   MetodoPagoVenta,
   VentaDetalle,
+  VentaDetalleItem,
 } from '@/lib/ventas/queries';
+import { urlWhatsappComprobante } from '@/lib/ventas/comprobante';
+
+const DIAS_LIMITE_DEVOLUCION = 30;
 
 const FECHA_HORA_FMT = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -228,12 +239,30 @@ function DetalleContenido({
   onAnulada: (v: VentaDetalle) => void;
 }) {
   const fechaCompleta = FECHA_HORA_FMT.format(new Date(venta.creadaEn));
-  const [mostrarForm, setMostrarForm] = useState(false);
+  const [mostrarFormAnular, setMostrarFormAnular] = useState(false);
+  const [mostrarFormDevolucion, setMostrarFormDevolucion] = useState(false);
 
   const turnoAbierto = venta.turno !== null && venta.turno.cierreEn === null;
   const puedeAnularPorRol = esAdmin || venta.usuarioId === currentUserId;
   const puedeAnular =
     !venta.anulacion && turnoAbierto && puedeAnularPorRol;
+
+  const diasDesdeVenta =
+    (Date.now() - new Date(venta.creadaEn).getTime()) /
+    (1000 * 60 * 60 * 24);
+  const itemsConSaldo = venta.items.filter(
+    (it) =>
+      it.cantidad - (venta.cantidadDevueltaPorItem[it.id] ?? 0) > 0,
+  );
+  const puedeDevolver =
+    !venta.anulacion &&
+    diasDesdeVenta <= DIAS_LIMITE_DEVOLUCION &&
+    itemsConSaldo.length > 0;
+
+  const whatsappHref = useMemo(
+    () => (venta.anulacion ? null : urlWhatsappComprobante(venta)),
+    [venta],
+  );
 
   return (
     <>
@@ -367,33 +396,370 @@ function DetalleContenido({
         </section>
       )}
 
-      {puedeAnular && mostrarForm && (
+      {venta.devoluciones.length > 0 && (
+        <DevolucionesPrevias devoluciones={venta.devoluciones} />
+      )}
+
+      {puedeAnular && mostrarFormAnular && (
         <FormAnular
           ventaId={venta.id}
-          onCancel={() => setMostrarForm(false)}
+          onCancel={() => setMostrarFormAnular(false)}
+          onSuccess={onAnulada}
+        />
+      )}
+
+      {puedeDevolver && mostrarFormDevolucion && (
+        <FormDevolucion
+          venta={venta}
+          itemsConSaldo={itemsConSaldo}
+          onCancel={() => setMostrarFormDevolucion(false)}
           onSuccess={onAnulada}
         />
       )}
 
       <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-        {puedeAnular && !mostrarForm ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-            onClick={() => setMostrarForm(true)}
-          >
-            <Ban className="h-4 w-4" />
-            Anular venta
-          </Button>
-        ) : (
-          <span />
-        )}
+        <div className="flex flex-wrap gap-2">
+          {puedeAnular && !mostrarFormAnular && (
+            <Button
+              type="button"
+              variant="outline"
+              className="border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+              onClick={() => setMostrarFormAnular(true)}
+            >
+              <Ban className="h-4 w-4" />
+              Anular venta
+            </Button>
+          )}
+          {puedeDevolver && !mostrarFormDevolucion && (
+            <Button
+              type="button"
+              variant="outline"
+              className="border-amber-300 text-amber-800 hover:bg-amber-50"
+              onClick={() => setMostrarFormDevolucion(true)}
+            >
+              <Undo2 className="h-4 w-4" />
+              Registrar devolución
+            </Button>
+          )}
+          {whatsappHref && (
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-md border border-emerald-300 px-3 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-50"
+            >
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp
+            </a>
+          )}
+        </div>
         <Button type="button" variant="outline" onClick={onClose}>
           Cerrar
         </Button>
       </DialogFooter>
     </>
+  );
+}
+
+function DevolucionesPrevias({
+  devoluciones,
+}: {
+  devoluciones: VentaDetalle['devoluciones'];
+}) {
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Devoluciones ({devoluciones.length})
+      </h3>
+      <ul className="space-y-2">
+        {devoluciones.map((d) => (
+          <li
+            key={d.id}
+            className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium text-amber-900">
+                {FECHA_HORA_CORTA_FMT.format(new Date(d.creadaEn))} ·{' '}
+                {d.usuarioNombre}
+              </span>
+              <span className="font-semibold tabular-nums text-amber-900">
+                -{formatMoneda(d.montoTotal)}
+              </span>
+            </div>
+            {d.motivo && (
+              <p className="text-xs text-amber-900/80">
+                <span className="font-medium">Motivo:</span> {d.motivo}
+              </p>
+            )}
+            <ul className="mt-1 text-xs text-amber-900/80">
+              {d.items.map((it) => (
+                <li key={it.id}>
+                  • {nombreItem(
+                    it.productoNombre,
+                    it.varianteNombre,
+                    it.esVarianteUnicaImplicita,
+                  )}{' '}
+                  x{it.cantidad} — {formatMoneda(it.subtotal)}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function FormDevolucion({
+  venta,
+  itemsConSaldo,
+  onCancel,
+  onSuccess,
+}: {
+  venta: VentaDetalle;
+  itemsConSaldo: VentaDetalleItem[];
+  onCancel: () => void;
+  onSuccess: (v: VentaDetalle) => void;
+}) {
+  const [cantidades, setCantidades] = useState<Record<string, number>>(() =>
+    Object.fromEntries(itemsConSaldo.map((it) => [it.id, 0])),
+  );
+  const [motivo, setMotivo] = useState('');
+  const [confirmando, setConfirmando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const enviandoRef = useRef(false);
+
+  function disponible(it: VentaDetalleItem): number {
+    return it.cantidad - (venta.cantidadDevueltaPorItem[it.id] ?? 0);
+  }
+
+  function setCantidad(itemId: string, max: number, raw: string) {
+    const n = Number(raw);
+    let val = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+    if (val > max) val = max;
+    setCantidades((prev) => ({ ...prev, [itemId]: val }));
+  }
+
+  function devolverTodo() {
+    const next: Record<string, number> = {};
+    for (const it of itemsConSaldo) {
+      next[it.id] = disponible(it);
+    }
+    setCantidades(next);
+  }
+
+  const itemsAEnviar = itemsConSaldo
+    .map((it) => ({ itemVentaId: it.id, cantidad: cantidades[it.id] ?? 0 }))
+    .filter((i) => i.cantidad > 0);
+
+  const montoTotal = itemsConSaldo.reduce((acc, it) => {
+    const cant = cantidades[it.id] ?? 0;
+    return acc + cant * it.precioUnitario;
+  }, 0);
+
+  const habilitado =
+    itemsAEnviar.length > 0 && motivo.trim().length >= 3 && !enviando;
+
+  async function confirmar() {
+    if (enviandoRef.current) return;
+    enviandoRef.current = true;
+    setEnviando(true);
+    setError(null);
+    try {
+      const res = await crearDevolucion({
+        ventaId: venta.id,
+        motivo: motivo.trim(),
+        items: itemsAEnviar,
+      });
+      if (!res.ok) {
+        setError(
+          res.errores.join(' · ') || 'No se pudo registrar la devolución.',
+        );
+        setConfirmando(false);
+        return;
+      }
+      const detalle = await obtenerDetalleVentaAction({ ventaId: venta.id });
+      if (detalle.ok) {
+        onSuccess(detalle.venta);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo registrar la devolución.',
+      );
+      setConfirmando(false);
+    } finally {
+      setEnviando(false);
+      enviandoRef.current = false;
+    }
+  }
+
+  return (
+    <section className="space-y-3 rounded-md border border-amber-200 bg-amber-50/60 p-3">
+      <div className="flex items-center justify-between gap-2 text-sm font-semibold text-amber-900">
+        <span className="flex items-center gap-2">
+          <Undo2 className="h-4 w-4" aria-hidden />
+          Registrar devolución
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={devolverTodo}
+          disabled={enviando}
+        >
+          Devolver todo
+        </Button>
+      </div>
+
+      <div className="overflow-hidden rounded-md border bg-background">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">Producto</th>
+              <th className="w-[60px] px-3 py-2 text-right font-medium">
+                Vend.
+              </th>
+              <th className="w-[60px] px-3 py-2 text-right font-medium">
+                Devuelto
+              </th>
+              <th className="w-[90px] px-3 py-2 text-right font-medium">
+                Devolver
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {itemsConSaldo.map((it) => {
+              const max = disponible(it);
+              return (
+                <tr key={it.id} className="border-t">
+                  <td className="px-3 py-2">
+                    {nombreItem(
+                      it.productoNombre,
+                      it.varianteNombre,
+                      it.esVarianteUnicaImplicita,
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {it.cantidad}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                    {venta.cantidadDevueltaPorItem[it.id] ?? 0}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <input
+                      type="number"
+                      min={0}
+                      max={max}
+                      step={1}
+                      value={cantidades[it.id] ?? 0}
+                      onChange={(e) =>
+                        setCantidad(it.id, max, e.target.value)
+                      }
+                      disabled={enviando}
+                      className="w-16 rounded-md border bg-background px-2 py-1 text-right text-sm tabular-nums focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="space-y-1">
+        <label
+          htmlFor="motivo-devolucion"
+          className="text-xs font-medium text-muted-foreground"
+        >
+          Motivo (obligatorio)
+        </label>
+        <textarea
+          id="motivo-devolucion"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          rows={2}
+          maxLength={500}
+          placeholder="Ej: cambio de talle, no le gustó…"
+          className="w-full rounded-md border bg-background px-2 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+      </div>
+
+      <div className="flex items-center justify-between rounded-md border bg-background px-3 py-2 text-sm">
+        <span className="text-muted-foreground">Total a devolver</span>
+        <span className="font-semibold tabular-nums">
+          {formatMoneda(montoTotal)}
+        </span>
+      </div>
+
+      {error && (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+
+      {confirmando ? (
+        <div className="space-y-2 rounded-md border border-amber-300 bg-background p-3 text-sm">
+          <p className="font-medium text-amber-900">
+            ¿Confirmás la devolución por {formatMoneda(montoTotal)}?
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Se va a sumar el stock devuelto y quedar registrada. La venta
+            original no se modifica. Si fue en efectivo, devolvé la plata al
+            cliente.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className="bg-amber-600 text-white hover:bg-amber-700"
+              disabled={enviando}
+              onClick={confirmar}
+            >
+              {enviando && (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              )}
+              Sí, registrar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={enviando}
+              onClick={() => setConfirmando(false)}
+            >
+              Volver
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            size="sm"
+            className="bg-amber-600 text-white hover:bg-amber-700"
+            disabled={!habilitado}
+            onClick={() => {
+              setError(null);
+              setConfirmando(true);
+            }}
+          >
+            Registrar devolución
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onCancel}
+            disabled={enviando}
+          >
+            Cancelar
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -7,13 +7,23 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 6.5 en curso (post-demo). Items 4 (anular venta) y 5 (retiro de caja) deployados a producción 2026-05-22.**
+**Sprint 6.5 COMPLETO en local (2026-05-22). Items 4 (anular venta), 5 (retiro de caja) y 6 (importador de catálogo) ya deployados. Item 7 (devoluciones + WhatsApp) commiteado en `main` local, pendiente deploy.**
 
 ## Tarea en curso
 
-Ninguna. Próximo paso: item 6 (importador de catálogo) o item 7 (devoluciones + WhatsApp).
+Ninguna. Próximo paso: deployar item 7 a producción (migrate Neon directo + push).
 
 ## Último avance
+
+**Sprint 6.5 — Devoluciones + comprobante WhatsApp (2026-05-22)** — commiteado en `main` local, **pendiente deploy** (mismo flujo: migrate Neon directo → push).
+- Schema: nuevos modelos `Devolucion` (venta, usuario, motivo, montoTotal, creadaEn) e `ItemDevolucion` (devolucion, itemVenta, variante, cantidad, precioUnitario, subtotal) + relaciones inversas en `Venta`, `ItemVenta`, `Variante`, `User`. Migración `20260522145032_add_devoluciones` aplicada en dev.
+- Backend: `crearDevolucion` (Zod: motivo min 3, items con cantidad ≥ 1) valida venta no anulada, ≤30 días, cantidad ≤ vendida − ya devuelta (permite múltiples devoluciones parciales). En una transacción: crea `Devolucion` + items, registra `MovimientoStock` tipo `DEVOLUCION` y suma stock atómicamente. Permisos Admin/Vendedor. Nueva query `obtenerDevolucionesVenta`; `obtenerVentaDetalle` y `listarVentas` ahora incluyen devoluciones y `cantidadDevueltaPorItem` / `estadoDevolucion`.
+- UI Detalle (`DetalleVentaModal`): sección "Devoluciones (N)" con historial; botón "Registrar devolución" que abre form con tabla de items (vendido / ya devuelto / a devolver), botón "Devolver todo", input de cantidad por item con max, campo motivo obligatorio, preview de monto, confirmación + guard `useRef`. Botón "WhatsApp" sutil para reenvío.
+- UI Tabla (`TablaVentas`): badge "Dev. parcial" (amber-200) o "Devuelta" (amber-300) junto al código según `estadoDevolucion`.
+- UI Éxito (`/ventas/exito`): botón prominente verde "Enviar comprobante por WhatsApp" que abre `https://wa.me/?text=…` en pestaña nueva. Sin número precargado.
+- Helper `lib/ventas/comprobante.ts`: `generarTextoComprobante(venta)` y `urlWhatsappComprobante(venta)`. Texto plano formateado con emoji 🧾, items, subtotal/descuento/total, método de pago.
+- Decisión "empezar simple": el impacto en caja de devoluciones en efectivo NO se trackea automáticamente. El cajero hace retiro manual o lo anota en observaciones al cierre. Documentado.
+- Verificación: `tsc --noEmit` y `npm run build` verdes. Helper de comprobante probado vía tsx (output coincide con formato pedido).
 
 **Sprint 6.5 — Retiro de caja (2026-05-22)** — commit `331463b` en `main`, deployado a producción (migrate Neon + push).
 - Schema: nuevo modelo `MovimientoCaja` (`turnoId`, `usuarioId`, `tipo` String default 'RETIRO', `monto` Decimal, `motivo`, `creadoEn`) + relación inversa en `Turno` y `User`. Migración `20260522141541_add_movimiento_caja` aplicada en dev (datos existentes intactos).
@@ -67,8 +77,8 @@ Ninguna. Próximo paso: item 6 (importador de catálogo) o item 7 (devoluciones 
 3. ✅ Alta rápida de producto en la venta (commit `bd87340`).
 4. ✅ Cancelar venta (deployado 2026-05-22): anular solo mientras el turno esté ABIERTO. Venta marcada ANULADA + `anuladaPor` + `motivoAnulacion`, no cuenta en totales, reversión de stock atómica, Vendedora puede anular sus propias del turno.
 5. ✅ Retiro de caja (deployado 2026-05-22): modelo `MovimientoCaja` (varios retiros por turno); esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede, registrado.
-6. Importador de catálogo (Agustín normaliza la planilla, Code arma el import).
-7. Devoluciones (P2.2) + comprobante por WhatsApp (lo que quedaba del 6.5 original).
+6. ✅ Importador de catálogo (commit `c74328a`).
+7. ✅ Devoluciones (P2.2) + comprobante por WhatsApp (2026-05-22): modelos `Devolucion` + `ItemDevolucion`, ≤30 días, parcial/total con tope vs ya devuelto, stock revertido en transacción, badges en historial, botón WhatsApp prominente en éxito + sutil en detalle. **Local, pendiente deploy**.
 
 **Permisos (decididos por PO)**: la Vendedora puede aplicar descuentos, hacer retiros y anular sus ventas del turno; todo queda registrado con quién. Sin tope al inicio.
 
@@ -140,7 +150,7 @@ Ninguno.
 
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
-- **Último commit en main**: `331463b` (retiro de caja, deployado).
+- **Último commit en main**: por crear ahora (devoluciones + WhatsApp). Anterior deployado: `c74328a` (importador de catálogo).
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.

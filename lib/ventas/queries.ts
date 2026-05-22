@@ -13,6 +13,8 @@ export type MetodoPagoItem = {
 
 export type DescuentoTipo = 'PORCENTAJE' | 'MONTO';
 
+export type EstadoDevolucion = 'NINGUNA' | 'PARCIAL' | 'TOTAL';
+
 export type VentaListItem = {
   id: string;
   codigoCorto: string;
@@ -27,6 +29,7 @@ export type VentaListItem = {
   total: number;
   aplicaDescuento: boolean;
   anulada: boolean;
+  estadoDevolucion: EstadoDevolucion;
 };
 
 export type ListarVentasParams = {
@@ -123,6 +126,12 @@ export async function listarVentas(
       metodosPago: true,
       anuladaEn: true,
       usuario: { select: { nombre: true } },
+      items: { select: { id: true, cantidad: true } },
+      devoluciones: {
+        select: {
+          items: { select: { itemVentaId: true, cantidad: true } },
+        },
+      },
     },
   });
 
@@ -143,9 +152,32 @@ export async function listarVentas(
     total: Number(v.total),
     aplicaDescuento: v.aplicaDescuento,
     anulada: v.anuladaEn !== null,
+    estadoDevolucion: calcularEstadoDevolucion(v.items, v.devoluciones),
   }));
 
   return { ventas, hayMas };
+}
+
+function calcularEstadoDevolucion(
+  items: { id: string; cantidad: number }[],
+  devoluciones: { items: { itemVentaId: string; cantidad: number }[] }[],
+): EstadoDevolucion {
+  if (devoluciones.length === 0) return 'NINGUNA';
+  const devuelto = new Map<string, number>();
+  for (const d of devoluciones) {
+    for (const it of d.items) {
+      devuelto.set(it.itemVentaId, (devuelto.get(it.itemVentaId) ?? 0) + it.cantidad);
+    }
+  }
+  let cantidadTotal = 0;
+  let cantidadDevuelta = 0;
+  for (const it of items) {
+    cantidadTotal += it.cantidad;
+    cantidadDevuelta += Math.min(devuelto.get(it.id) ?? 0, it.cantidad);
+  }
+  if (cantidadDevuelta === 0) return 'NINGUNA';
+  if (cantidadDevuelta >= cantidadTotal) return 'TOTAL';
+  return 'PARCIAL';
 }
 
 export type VentaDetalleItem = {
@@ -165,6 +197,27 @@ export type VentaAnulacionInfo = {
   motivo: string | null;
 };
 
+export type DevolucionItem = {
+  id: string;
+  itemVentaId: string;
+  varianteId: string;
+  productoNombre: string;
+  varianteNombre: string;
+  esVarianteUnicaImplicita: boolean;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+};
+
+export type DevolucionInfo = {
+  id: string;
+  creadaEn: string;
+  motivo: string;
+  montoTotal: number;
+  usuarioNombre: string;
+  items: DevolucionItem[];
+};
+
 export type VentaDetalle = {
   id: string;
   codigoCorto: string;
@@ -182,6 +235,8 @@ export type VentaDetalle = {
   turno: { aperturaEn: string; cierreEn: string | null } | null;
   items: VentaDetalleItem[];
   anulacion: VentaAnulacionInfo | null;
+  devoluciones: DevolucionInfo[];
+  cantidadDevueltaPorItem: Record<string, number>;
 };
 
 function esNombreVarianteUnica(nombre: string): boolean {
@@ -227,9 +282,43 @@ export async function obtenerVentaDetalle(
           },
         },
       },
+      devoluciones: {
+        orderBy: { creadaEn: 'asc' },
+        select: {
+          id: true,
+          creadaEn: true,
+          motivo: true,
+          montoTotal: true,
+          usuario: { select: { nombre: true } },
+          items: {
+            select: {
+              id: true,
+              itemVentaId: true,
+              varianteId: true,
+              cantidad: true,
+              precioUnitario: true,
+              subtotal: true,
+              variante: {
+                select: {
+                  nombre: true,
+                  producto: { select: { nombre: true } },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
   if (!v) return null;
+
+  const cantidadDevueltaPorItem: Record<string, number> = {};
+  for (const dev of v.devoluciones) {
+    for (const it of dev.items) {
+      cantidadDevueltaPorItem[it.itemVentaId] =
+        (cantidadDevueltaPorItem[it.itemVentaId] ?? 0) + it.cantidad;
+    }
+  }
 
   return {
     id: v.id,
@@ -268,7 +357,77 @@ export async function obtenerVentaDetalle(
           motivo: v.motivoAnulacion,
         }
       : null,
+    devoluciones: v.devoluciones.map((d) => ({
+      id: d.id,
+      creadaEn: d.creadaEn.toISOString(),
+      motivo: d.motivo,
+      montoTotal: Number(d.montoTotal),
+      usuarioNombre: d.usuario.nombre,
+      items: d.items.map((i) => ({
+        id: i.id,
+        itemVentaId: i.itemVentaId,
+        varianteId: i.varianteId,
+        productoNombre: i.variante.producto.nombre,
+        varianteNombre: i.variante.nombre,
+        esVarianteUnicaImplicita: esNombreVarianteUnica(i.variante.nombre),
+        cantidad: i.cantidad,
+        precioUnitario: Number(i.precioUnitario),
+        subtotal: Number(i.subtotal),
+      })),
+    })),
+    cantidadDevueltaPorItem,
   };
+}
+
+export async function obtenerDevolucionesVenta(
+  ventaId: string,
+): Promise<DevolucionInfo[]> {
+  const devs = await prisma.devolucion.findMany({
+    where: { ventaId },
+    orderBy: { creadaEn: 'asc' },
+    select: {
+      id: true,
+      creadaEn: true,
+      motivo: true,
+      montoTotal: true,
+      usuario: { select: { nombre: true } },
+      items: {
+        select: {
+          id: true,
+          itemVentaId: true,
+          varianteId: true,
+          cantidad: true,
+          precioUnitario: true,
+          subtotal: true,
+          variante: {
+            select: {
+              nombre: true,
+              producto: { select: { nombre: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return devs.map((d) => ({
+    id: d.id,
+    creadaEn: d.creadaEn.toISOString(),
+    motivo: d.motivo,
+    montoTotal: Number(d.montoTotal),
+    usuarioNombre: d.usuario.nombre,
+    items: d.items.map((i) => ({
+      id: i.id,
+      itemVentaId: i.itemVentaId,
+      varianteId: i.varianteId,
+      productoNombre: i.variante.producto.nombre,
+      varianteNombre: i.variante.nombre,
+      esVarianteUnicaImplicita: esNombreVarianteUnica(i.variante.nombre),
+      cantidad: i.cantidad,
+      precioUnitario: Number(i.precioUnitario),
+      subtotal: Number(i.subtotal),
+    })),
+  }));
 }
 
 export async function listarUsuariosDeSucursal(

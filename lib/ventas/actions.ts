@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { getCurrentUser, requireAuth } from '@/lib/auth/session';
@@ -12,6 +13,8 @@ import {
 } from './queries';
 import { crearVentaCore } from './core';
 import { fail, type ActionResult } from './types';
+
+const DIAS_LIMITE_DEVOLUCION = 30;
 
 export type ResultadoBusqueda = {
   varianteId: string;
@@ -200,4 +203,179 @@ export async function anularVenta(
   revalidatePath('/stock');
   revalidatePath('/');
   return { ok: true, ventaId: venta.id, codigoCorto: venta.codigoCorto };
+}
+
+const ItemDevolucionInput = z.object({
+  itemVentaId: z.string().min(1, 'itemVentaId requerido'),
+  cantidad: z.number().int('La cantidad debe ser entera').min(1, 'La cantidad debe ser >= 1'),
+});
+
+const CrearDevolucionSchema = z
+  .object({
+    ventaId: z.string().min(1, 'ventaId requerido'),
+    motivo: z
+      .string()
+      .trim()
+      .min(3, 'El motivo debe tener al menos 3 caracteres')
+      .max(500, 'El motivo es demasiado largo'),
+    items: z.array(ItemDevolucionInput).min(1, 'Tenés que devolver al menos un ítem'),
+  })
+  .refine(
+    (data) =>
+      new Set(data.items.map((i) => i.itemVentaId)).size === data.items.length,
+    { message: 'Hay items repetidos en la devolución', path: ['items'] },
+  );
+
+export async function crearDevolucion(
+  rawInput: unknown,
+): Promise<ActionResult<{ devolucionId: string; montoTotal: number }>> {
+  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+
+  const parsed = CrearDevolucionSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return fail(parsed.error.issues.map((i) => i.message));
+  }
+  const { ventaId, motivo, items: itemsInput } = parsed.data;
+
+  const venta = await prisma.venta.findUnique({
+    where: { id: ventaId },
+    select: {
+      id: true,
+      sucursalId: true,
+      creadaEn: true,
+      anuladaEn: true,
+      items: {
+        select: {
+          id: true,
+          varianteId: true,
+          cantidad: true,
+          precioUnitario: true,
+        },
+      },
+      devoluciones: {
+        select: {
+          items: {
+            select: { itemVentaId: true, cantidad: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!venta) return fail(['Venta no encontrada.']);
+  if (venta.anuladaEn) {
+    return fail(['No se puede devolver una venta anulada.']);
+  }
+
+  const diasDesdeVenta =
+    (Date.now() - venta.creadaEn.getTime()) / (1000 * 60 * 60 * 24);
+  if (diasDesdeVenta > DIAS_LIMITE_DEVOLUCION) {
+    return fail([
+      `No se puede devolver una venta de más de ${DIAS_LIMITE_DEVOLUCION} días.`,
+    ]);
+  }
+
+  const yaDevuelto = new Map<string, number>();
+  for (const dev of venta.devoluciones) {
+    for (const it of dev.items) {
+      yaDevuelto.set(
+        it.itemVentaId,
+        (yaDevuelto.get(it.itemVentaId) ?? 0) + it.cantidad,
+      );
+    }
+  }
+
+  const itemsVenta = new Map(venta.items.map((it) => [it.id, it]));
+
+  type Plan = {
+    itemVentaId: string;
+    varianteId: string;
+    cantidad: number;
+    precioUnitario: Prisma.Decimal;
+    subtotal: Prisma.Decimal;
+  };
+  const plan: Plan[] = [];
+  let montoTotal = new Prisma.Decimal(0);
+
+  for (const itemIn of itemsInput) {
+    const original = itemsVenta.get(itemIn.itemVentaId);
+    if (!original) {
+      return fail([`Item ${itemIn.itemVentaId} no pertenece a esta venta.`]);
+    }
+    const yaDev = yaDevuelto.get(itemIn.itemVentaId) ?? 0;
+    const disponible = original.cantidad - yaDev;
+    if (itemIn.cantidad > disponible) {
+      return fail([
+        `No podés devolver ${itemIn.cantidad} unidades; quedan ${disponible} disponibles.`,
+      ]);
+    }
+    const subtotal = original.precioUnitario.mul(itemIn.cantidad);
+    montoTotal = montoTotal.add(subtotal);
+    plan.push({
+      itemVentaId: original.id,
+      varianteId: original.varianteId,
+      cantidad: itemIn.cantidad,
+      precioUnitario: original.precioUnitario,
+      subtotal,
+    });
+  }
+
+  const devolucion = await prisma.$transaction(async (tx) => {
+    const dev = await tx.devolucion.create({
+      data: {
+        ventaId: venta.id,
+        usuarioId: user.id,
+        motivo,
+        montoTotal,
+        items: {
+          create: plan.map((p) => ({
+            itemVentaId: p.itemVentaId,
+            varianteId: p.varianteId,
+            cantidad: p.cantidad,
+            precioUnitario: p.precioUnitario,
+            subtotal: p.subtotal,
+          })),
+        },
+      },
+      select: { id: true },
+    });
+
+    for (const p of plan) {
+      await tx.movimientoStock.create({
+        data: {
+          varianteId: p.varianteId,
+          sucursalId: venta.sucursalId,
+          tipo: 'DEVOLUCION',
+          cantidad: p.cantidad,
+          motivo,
+          usuarioId: user.id,
+          ventaId: venta.id,
+        },
+      });
+      await tx.stock.upsert({
+        where: {
+          varianteId_sucursalId: {
+            varianteId: p.varianteId,
+            sucursalId: venta.sucursalId,
+          },
+        },
+        update: { cantidad: { increment: p.cantidad } },
+        create: {
+          varianteId: p.varianteId,
+          sucursalId: venta.sucursalId,
+          cantidad: p.cantidad,
+        },
+      });
+    }
+
+    return dev;
+  });
+
+  revalidatePath('/ventas');
+  revalidatePath('/stock');
+  return {
+    ok: true,
+    devolucionId: devolucion.id,
+    montoTotal: Number(montoTotal),
+  };
 }

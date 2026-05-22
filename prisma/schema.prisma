@@ -81,10 +81,11 @@ model Variante {
   creadaEn      DateTime @default(now())
   actualizadaEn DateTime @updatedAt
 
-  producto    Producto          @relation(fields: [productoId], references: [id])
-  stocks      Stock[]
-  itemsVenta  ItemVenta[]
-  movimientos MovimientoStock[]
+  producto         Producto          @relation(fields: [productoId], references: [id])
+  stocks           Stock[]
+  itemsVenta       ItemVenta[]
+  movimientos      MovimientoStock[]
+  itemsDevolucion  ItemDevolucion[]
 
   @@index([productoId])
 }
@@ -131,6 +132,7 @@ model User {
   turnos           Turno[]
   productosCreados Producto[]        @relation("ProductosCreados")
   movimientosCaja  MovimientoCaja[]
+  devoluciones     Devolucion[]
 
   @@index([sucursalId])
   @@map("user")
@@ -203,12 +205,13 @@ model Venta {
   anuladaPorId    String?
   motivoAnulacion String?
 
-  sucursal    Sucursal          @relation(fields: [sucursalId], references: [id])
-  usuario     User              @relation(fields: [usuarioId], references: [id])
-  anuladaPor  User?             @relation("VentasAnuladas", fields: [anuladaPorId], references: [id])
-  turno       Turno?            @relation(fields: [turnoId], references: [id])
-  items       ItemVenta[]
-  movimientos MovimientoStock[]
+  sucursal     Sucursal          @relation(fields: [sucursalId], references: [id])
+  usuario      User              @relation(fields: [usuarioId], references: [id])
+  anuladaPor   User?             @relation("VentasAnuladas", fields: [anuladaPorId], references: [id])
+  turno        Turno?            @relation(fields: [turnoId], references: [id])
+  items        ItemVenta[]
+  movimientos  MovimientoStock[]
+  devoluciones Devolucion[]
 
   @@index([sucursalId, creadaEn])
   @@index([usuarioId])
@@ -223,8 +226,9 @@ model ItemVenta {
   precioUnitario Decimal @db.Decimal(12, 2)
   subtotal       Decimal @db.Decimal(12, 2)
 
-  venta    Venta    @relation(fields: [ventaId], references: [id], onDelete: Cascade)
-  variante Variante @relation(fields: [varianteId], references: [id])
+  venta            Venta             @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  variante         Variante          @relation(fields: [varianteId], references: [id])
+  itemsDevolucion  ItemDevolucion[]
 
   @@index([ventaId])
   @@index([varianteId])
@@ -288,4 +292,38 @@ model MovimientoCaja {
 
   @@index([turnoId, creadoEn])
   @@index([usuarioId])
+}
+
+model Devolucion {
+  id          String   @id @default(cuid())
+  ventaId     String
+  usuarioId   String
+  motivo      String
+  montoTotal  Decimal  @db.Decimal(12, 2)
+  creadaEn    DateTime @default(now())
+
+  venta   Venta            @relation(fields: [ventaId], references: [id])
+  usuario User             @relation(fields: [usuarioId], references: [id])
+  items   ItemDevolucion[]
+
+  @@index([ventaId, creadaEn])
+  @@index([usuarioId])
+}
+
+model ItemDevolucion {
+  id             String  @id @default(cuid())
+  devolucionId   String
+  itemVentaId    String
+  varianteId     String
+  cantidad       Int
+  precioUnitario Decimal @db.Decimal(12, 2)
+  subtotal       Decimal @db.Decimal(12, 2)
+
+  devolucion Devolucion @relation(fields: [devolucionId], references: [id], onDelete: Cascade)
+  itemVenta  ItemVenta  @relation(fields: [itemVentaId], references: [id])
+  variante   Variante   @relation(fields: [varianteId], references: [id])
+
+  @@index([devolucionId])
+  @@index([itemVentaId])
+  @@index([varianteId])
 }

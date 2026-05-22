@@ -182,6 +182,16 @@ export function TablaVentas({
                           Anulada
                         </span>
                       )}
+                      {!v.anulada && v.estadoDevolucion === 'PARCIAL' && (
+                        <span className="inline-flex w-fit items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                          Dev. parcial
+                        </span>
+                      )}
+                      {!v.anulada && v.estadoDevolucion === 'TOTAL' && (
+                        <span className="inline-flex w-fit items-center rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                          Devuelta
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="align-top">

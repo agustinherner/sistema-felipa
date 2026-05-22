@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { prisma } from '@/lib/db';
+import { obtenerVentaDetalle } from '@/lib/ventas/queries';
+import { urlWhatsappComprobante } from '@/lib/ventas/comprobante';
 
 export const metadata = {
   title: 'Venta registrada',
@@ -25,16 +26,16 @@ export default async function VentaExitoPage({
   }
 
   let turnoAbierto = false;
+  let whatsappHref: string | null = null;
   if (ventaId) {
-    const venta = await prisma.venta.findUnique({
-      where: { id: ventaId },
-      select: {
-        anuladaEn: true,
-        turno: { select: { cierreEn: true } },
-      },
-    });
-    turnoAbierto =
-      !!venta && !venta.anuladaEn && !!venta.turno && venta.turno.cierreEn === null;
+    const venta = await obtenerVentaDetalle(ventaId);
+    if (venta) {
+      turnoAbierto =
+        !venta.anulacion && !!venta.turno && venta.turno.cierreEn === null;
+      if (!venta.anulacion) {
+        whatsappHref = urlWhatsappComprobante(venta);
+      }
+    }
   }
 
   const anularHref = ventaId
@@ -62,6 +63,18 @@ export default async function VentaExitoPage({
           {codigo}
         </p>
       </div>
+
+      {whatsappHref && (
+        <a
+          href={whatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 sm:w-auto sm:min-w-72"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Enviar comprobante por WhatsApp
+        </a>
+      )}
 
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
         <Button asChild className="sm:min-w-40">
