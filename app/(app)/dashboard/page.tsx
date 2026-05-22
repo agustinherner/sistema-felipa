@@ -7,6 +7,7 @@ import {
 import { ResumenTurno } from './_components/ResumenTurno';
 import { SinTurno } from './_components/SinTurno';
 import { TablaTurnosMes } from './_components/TablaTurnosMes';
+import { SeccionNegocio } from './_components/admin/SeccionNegocio';
 
 const MESES = [
   'enero',
@@ -36,6 +37,8 @@ export default async function DashboardPage() {
   ]);
   const retiros = resumen ? await obtenerRetirosTurno(resumen.id) : [];
 
+  const esAdmin = user.role === 'admin';
+
   return (
     <div className="space-y-6">
       <div>
@@ -45,13 +48,26 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {resumen ? (
-        <ResumenTurno resumen={resumen} retiros={retiros} />
-      ) : (
-        <SinTurno />
-      )}
+      <section className="space-y-4">
+        {esAdmin && (
+          <div>
+            <h2 className="text-lg font-semibold">Mi turno</h2>
+            <p className="text-sm text-muted-foreground">
+              Tu caja personal.
+            </p>
+          </div>
+        )}
 
-      <TablaTurnosMes nombreMes={MESES[mes - 1]} turnos={turnosMes} />
+        {resumen ? (
+          <ResumenTurno resumen={resumen} retiros={retiros} />
+        ) : (
+          <SinTurno />
+        )}
+
+        <TablaTurnosMes nombreMes={MESES[mes - 1]} turnos={turnosMes} />
+      </section>
+
+      {esAdmin && <SeccionNegocio />}
     </div>
   );
 }
