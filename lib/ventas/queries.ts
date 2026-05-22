@@ -26,6 +26,7 @@ export type VentaListItem = {
   descuentoValor: number | null;
   total: number;
   aplicaDescuento: boolean;
+  anulada: boolean;
 };
 
 export type ListarVentasParams = {
@@ -34,6 +35,7 @@ export type ListarVentasParams = {
   fechaDesde?: Date;
   fechaHasta?: Date;
   metodoPago?: MetodoPagoVenta;
+  incluirAnuladas: boolean;
   page: number;
 };
 
@@ -78,6 +80,7 @@ export async function listarVentas(
     fechaDesde,
     fechaHasta,
     metodoPago,
+    incluirAnuladas,
     page,
   } = params;
 
@@ -97,6 +100,9 @@ export async function listarVentas(
       array_contains: [{ metodo: metodoPago }],
     };
   }
+  if (!incluirAnuladas) {
+    where.anuladaEn = null;
+  }
 
   const rows = await prisma.venta.findMany({
     where,
@@ -115,6 +121,7 @@ export async function listarVentas(
       total: true,
       aplicaDescuento: true,
       metodosPago: true,
+      anuladaEn: true,
       usuario: { select: { nombre: true } },
     },
   });
@@ -135,6 +142,7 @@ export async function listarVentas(
     descuentoValor: v.descuentoValor !== null ? Number(v.descuentoValor) : null,
     total: Number(v.total),
     aplicaDescuento: v.aplicaDescuento,
+    anulada: v.anuladaEn !== null,
   }));
 
   return { ventas, hayMas };
@@ -149,6 +157,12 @@ export type VentaDetalleItem = {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+};
+
+export type VentaAnulacionInfo = {
+  anuladaEn: string;
+  anuladaPorNombre: string | null;
+  motivo: string | null;
 };
 
 export type VentaDetalle = {
@@ -167,6 +181,7 @@ export type VentaDetalle = {
   whatsappCliente: string | null;
   turno: { aperturaEn: string; cierreEn: string | null } | null;
   items: VentaDetalleItem[];
+  anulacion: VentaAnulacionInfo | null;
 };
 
 function esNombreVarianteUnica(nombre: string): boolean {
@@ -192,7 +207,10 @@ export async function obtenerVentaDetalle(
       metodosPago: true,
       whatsappCliente: true,
       turnoId: true,
+      anuladaEn: true,
+      motivoAnulacion: true,
       usuario: { select: { nombre: true } },
+      anuladaPor: { select: { nombre: true } },
       turno: { select: { aperturaEn: true, cierreEn: true } },
       items: {
         select: {
@@ -243,6 +261,13 @@ export async function obtenerVentaDetalle(
       precioUnitario: Number(i.precioUnitario),
       subtotal: Number(i.subtotal),
     })),
+    anulacion: v.anuladaEn
+      ? {
+          anuladaEn: v.anuladaEn.toISOString(),
+          anuladaPorNombre: v.anuladaPor?.nombre ?? null,
+          motivo: v.motivoAnulacion,
+        }
+      : null,
   };
 }
 

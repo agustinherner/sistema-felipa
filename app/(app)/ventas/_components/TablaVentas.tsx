@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Table,
@@ -95,14 +95,28 @@ type Props = {
   hayMas: boolean;
   page: number;
   permissions: VentasPermissions;
+  currentUserId: string;
 };
 
-export function TablaVentas({ ventas, hayMas, page, permissions }: Props) {
+export function TablaVentas({
+  ventas,
+  hayMas,
+  page,
+  permissions,
+  currentUserId,
+}: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const ventaParam = searchParams.get('venta');
   const [ventaSeleccionada, setVentaSeleccionada] = useState<string | null>(
-    null,
+    ventaParam,
   );
+
+  useEffect(() => {
+    if (ventaParam && ventaParam !== ventaSeleccionada) {
+      setVentaSeleccionada(ventaParam);
+    }
+  }, [ventaParam, ventaSeleccionada]);
 
   function pagina(n: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -147,28 +161,65 @@ export function TablaVentas({ ventas, hayMas, page, permissions }: Props) {
               return (
                 <TableRow
                   key={v.id}
-                  className="cursor-pointer"
+                  className={cn(
+                    'cursor-pointer',
+                    v.anulada && 'bg-rose-50/40 text-muted-foreground',
+                  )}
                   onClick={() => setVentaSeleccionada(v.id)}
                 >
-                  <TableCell className="font-mono align-top text-sm">
-                    {v.codigoCorto}
+                  <TableCell className="align-top text-sm">
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={cn(
+                          'font-mono',
+                          v.anulada && 'line-through',
+                        )}
+                      >
+                        {v.codigoCorto}
+                      </span>
+                      {v.anulada && (
+                        <span className="inline-flex w-fit items-center rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                          Anulada
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="align-top">
-                    <div className="flex flex-col text-xs leading-tight tabular-nums">
+                    <div
+                      className={cn(
+                        'flex flex-col text-xs leading-tight tabular-nums',
+                        v.anulada && 'line-through',
+                      )}
+                    >
                       <span className="font-medium">{fecha}</span>
                       <span className="text-muted-foreground">{hora}</span>
                     </div>
                   </TableCell>
                   {showVendedor && (
-                    <TableCell className="hidden md:table-cell align-top text-sm text-muted-foreground">
+                    <TableCell
+                      className={cn(
+                        'hidden md:table-cell align-top text-sm text-muted-foreground',
+                        v.anulada && 'line-through',
+                      )}
+                    >
                       {v.usuarioNombre}
                     </TableCell>
                   )}
-                  <TableCell className="hidden md:table-cell align-top">
+                  <TableCell
+                    className={cn(
+                      'hidden md:table-cell align-top',
+                      v.anulada && 'opacity-60',
+                    )}
+                  >
                     <PagoChips metodos={v.metodosPago} />
                   </TableCell>
                   <TableCell className="text-right align-top">
-                    <div className="flex flex-col items-end gap-0.5">
+                    <div
+                      className={cn(
+                        'flex flex-col items-end gap-0.5',
+                        v.anulada && 'line-through',
+                      )}
+                    >
                       {v.aplicaDescuento ? (
                         <>
                           <span className="text-xs text-muted-foreground line-through tabular-nums">
@@ -229,7 +280,17 @@ export function TablaVentas({ ventas, hayMas, page, permissions }: Props) {
 
       <DetalleVentaModal
         ventaId={ventaSeleccionada}
-        onClose={() => setVentaSeleccionada(null)}
+        onClose={() => {
+          setVentaSeleccionada(null);
+          if (searchParams.has('venta')) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete('venta');
+            const qs = params.toString();
+            router.replace(qs ? `/ventas?${qs}` : '/ventas');
+          }
+        }}
+        currentUserId={currentUserId}
+        esAdmin={permissions.verTodas}
       />
     </div>
   );

@@ -14,6 +14,8 @@ export function tipoMovimientoLabel(tipo: TipoMovimiento): string {
       return 'Ajuste de conteo';
     case 'DEVOLUCION':
       return 'Devolución';
+    case 'ANULACION_VENTA':
+      return 'Venta anulada';
   }
 }
 
@@ -29,6 +31,8 @@ export function colorTipoMovimiento(tipo: TipoMovimiento): string {
       return 'bg-sky-50 text-sky-900 border-sky-200';
     case 'AJUSTE_CONTEO':
       return 'bg-slate-100 text-slate-800 border-slate-200';
+    case 'ANULACION_VENTA':
+      return 'bg-amber-50 text-amber-900 border-amber-200';
   }
 }
 

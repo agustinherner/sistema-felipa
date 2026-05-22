@@ -88,6 +88,8 @@ export default async function VentasPage({
   const hastaStr = parseString(searchParams.hasta) || today;
   const usuarioStr = parseString(searchParams.usuario);
   const metodoStr = parseString(searchParams.metodo);
+  const ocultarAnuladasStr = parseString(searchParams.ocultarAnuladas);
+  const ocultarAnuladas = ocultarAnuladasStr === '1';
   const page = parsePage(searchParams.page);
 
   const fechaDesde = parseFechaInicio(desdeStr) ?? undefined;
@@ -108,6 +110,7 @@ export default async function VentasPage({
     fechaDesde,
     fechaHasta,
     metodoPago,
+    incluirAnuladas: !ocultarAnuladas,
     page,
   });
 
@@ -143,6 +146,7 @@ export default async function VentasPage({
           hasta: hastaStr,
           usuario: permissions.filtrarPorUsuario ? usuarioStr : '',
           metodo: metodoStr,
+          ocultarAnuladas,
         }}
       />
 
@@ -151,6 +155,7 @@ export default async function VentasPage({
         hayMas={listado.hayMas}
         page={page}
         permissions={permissions}
+        currentUserId={user.id}
       />
     </div>
   );

@@ -24,6 +24,7 @@ type Props = {
     hasta: string;
     usuario: string;
     metodo: string;
+    ocultarAnuladas: boolean;
   };
 };
 
@@ -37,6 +38,9 @@ export function FiltrosVentas({
   const [hasta, setHasta] = useState(filtrosActuales.hasta);
   const [usuario, setUsuario] = useState(filtrosActuales.usuario);
   const [metodo, setMetodo] = useState(filtrosActuales.metodo);
+  const [ocultarAnuladas, setOcultarAnuladas] = useState(
+    filtrosActuales.ocultarAnuladas,
+  );
 
   function aplicar() {
     const params = new URLSearchParams();
@@ -46,6 +50,7 @@ export function FiltrosVentas({
       params.set('usuario', usuario);
     }
     if (metodo) params.set('metodo', metodo);
+    if (ocultarAnuladas) params.set('ocultarAnuladas', '1');
     const qs = params.toString();
     router.push(qs ? `/ventas?${qs}` : '/ventas');
   }
@@ -53,6 +58,7 @@ export function FiltrosVentas({
   function limpiar() {
     setUsuario('');
     setMetodo('');
+    setOcultarAnuladas(false);
     const today = new Date().toISOString().slice(0, 10);
     setDesde(today);
     setHasta(today);
@@ -137,6 +143,16 @@ export function FiltrosVentas({
             ))}
           </Select>
         </div>
+
+        <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={ocultarAnuladas}
+            onChange={(e) => setOcultarAnuladas(e.target.checked)}
+            className="h-4 w-4 rounded border-input"
+          />
+          Ocultar anuladas
+        </label>
 
         <div className="flex gap-2">
           <Button type="button" onClick={aplicar}>

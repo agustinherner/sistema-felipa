@@ -56,7 +56,7 @@ export async function calcularEfectivoVendidoEnTurno(
   turnoId: string,
 ): Promise<number> {
   const ventas = await prisma.venta.findMany({
-    where: { turnoId },
+    where: { turnoId, anuladaEn: null },
     select: { metodosPago: true },
   });
 
@@ -103,7 +103,7 @@ export async function obtenerResumenTurnoAbierto(
   if (!turno) return null;
 
   const ventas = await prisma.venta.findMany({
-    where: { turnoId: turno.id },
+    where: { turnoId: turno.id, anuladaEn: null },
     select: { total: true, metodosPago: true },
   });
 
@@ -177,8 +177,10 @@ export async function listarTurnosDelMes(
       efectivoEsperadoCierre: true,
       efectivoContadoCierre: true,
       diferencia: true,
-      _count: { select: { ventas: true } },
-      ventas: { select: { total: true } },
+      ventas: {
+        where: { anuladaEn: null },
+        select: { total: true },
+      },
     },
   });
 
@@ -198,7 +200,7 @@ export async function listarTurnosDelMes(
           ? Number(t.efectivoContadoCierre)
           : null,
       diferencia: t.diferencia !== null ? Number(t.diferencia) : null,
-      cantidadVentas: t._count.ventas,
+      cantidadVentas: t.ventas.length,
       totalVendido,
     };
   });

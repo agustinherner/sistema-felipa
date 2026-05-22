@@ -19,6 +19,7 @@ enum TipoMovimiento {
   AJUSTE_ROBO
   AJUSTE_CONTEO
   DEVOLUCION
+  ANULACION_VENTA
 }
 
 model HealthCheck {
@@ -123,6 +124,7 @@ model User {
 
   sucursal         Sucursal?         @relation(fields: [sucursalId], references: [id])
   ventas           Venta[]
+  ventasAnuladas   Venta[]           @relation("VentasAnuladas")
   movimientos      MovimientoStock[]
   sessions         Session[]
   accounts         Account[]
@@ -182,29 +184,34 @@ model Verification {
 }
 
 model Venta {
-  id              String   @id @default(cuid())
-  codigoCorto     String   @unique
+  id              String    @id @default(cuid())
+  codigoCorto     String    @unique
   sucursalId      String
   usuarioId       String
-  subtotal        Decimal  @db.Decimal(12, 2)
-  descuentoTotal  Decimal  @default(0) @db.Decimal(12, 2)
+  subtotal        Decimal   @db.Decimal(12, 2)
+  descuentoTotal  Decimal   @default(0) @db.Decimal(12, 2)
   descuentoTipo   String?
-  descuentoValor  Decimal? @db.Decimal(12, 2)
-  total           Decimal  @db.Decimal(12, 2)
-  aplicaDescuento Boolean  @default(false)
+  descuentoValor  Decimal?  @db.Decimal(12, 2)
+  total           Decimal   @db.Decimal(12, 2)
+  aplicaDescuento Boolean   @default(false)
   metodosPago     Json
   whatsappCliente String?
-  creadaEn        DateTime @default(now())
+  creadaEn        DateTime  @default(now())
   turnoId         String?
+  anuladaEn       DateTime?
+  anuladaPorId    String?
+  motivoAnulacion String?
 
   sucursal    Sucursal          @relation(fields: [sucursalId], references: [id])
   usuario     User              @relation(fields: [usuarioId], references: [id])
+  anuladaPor  User?             @relation("VentasAnuladas", fields: [anuladaPorId], references: [id])
   turno       Turno?            @relation(fields: [turnoId], references: [id])
   items       ItemVenta[]
   movimientos MovimientoStock[]
 
   @@index([sucursalId, creadaEn])
   @@index([usuarioId])
+  @@index([anuladaEn])
 }
 
 model ItemVenta {

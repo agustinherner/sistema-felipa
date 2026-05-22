@@ -7,13 +7,21 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 6.5 en curso (post-demo). Primer item cerrado: fix del bug de concurrencia en registro de venta (2026-05-22), deployado.**
+**Sprint 6.5 en curso (post-demo). Item 4 (anular venta) implementado local 2026-05-22; pendiente de deploy.**
 
 ## Tarea en curso
 
-Ninguna. Próximo paso: arrancar descuento editable.
+Ninguna. Próximo paso: deploy de anular venta (migrate Neon directo → push) y luego retiro de caja.
 
 ## Último avance
+
+**Sprint 6.5 — Anular venta (2026-05-22)** — commit local en `main`, sin deploy aún.
+- Schema: `Venta.anuladaEn`, `anuladaPorId`, `motivoAnulacion`; nuevo enum `TipoMovimiento.ANULACION_VENTA`. Migración `20260522135555_add_anulacion_venta` aplicada en dev (20 ventas existentes intactas, ninguna anulada).
+- Backend: `anularVenta` con validaciones (turno abierto, no doble anulación, permisos Admin/dueña). Reversión de stock atómica vía `MovimientoStock` + `Stock.increment` en transacción. Motivo obligatorio (min 3 chars).
+- Agregaciones que excluyen anuladas: `calcularEfectivoVendidoEnTurno`, `obtenerResumenTurnoAbierto`, `listarTurnosDelMes`, snapshot de cierre, página `/turno/cerrar`.
+- UI: badge "ANULADA" + tachado en `/ventas`, filtro "Ocultar anuladas", info de anulación + botón "Anular venta" con motivo y confirmación en el detalle, link sutil en `/ventas/exito` (deep link a `/ventas?venta=<id>`).
+- Guard de doble submit (`useRef`) en el botón de anular.
+- Verificación: `tsc --noEmit` y `npm run build` verdes.
 
 **Sprint 6.5 — Fix bug registro de venta bajo concurrencia (2026-05-22)** — commits `f3664a3` + `0c3f076` en `main`, deployados a producción.
 - Bug de mostrador: "primera venta OK, segunda tira error". Causa: colisión de `codigoCorto` (`count+1` sin sincronización) bajo concurrencia (doble tap).
@@ -47,9 +55,9 @@ Ninguna. Próximo paso: arrancar descuento editable.
 
 **Sprint 6.5 — Mejoras post-demo** (feedback del hijo usándolo en mostrador). Orden acordado:
 1. ✅ Fix bug registro de venta bajo concurrencia (2026-05-22).
-2. Descuento editable: fuera el 10% automático; manual y opcional por % o monto fijo sobre el total; el 10% efectivo/transferencia queda como botón de un toque (no se aplica solo). Campos nuevos `descuentoTipo` + `descuentoValor`. No bloqueante.
-3. Alta rápida de producto en la venta: nombre + precio, sin costo ni variante, marcada "incompleta" para que Admin complete después. Descuenta stock. Disponible para Vendedora, registrada quién. (PO la considera fundamental para esta etapa; se usará menos a medida que se complete el catálogo.)
-4. Cancelar venta: anular solo mientras el turno de esa venta esté ABIERTO (corrección en caliente, antes del snapshot de cierre). Post-cierre = devolución. La venta anulada no se borra (marca ANULADA + `anuladaPor` + `motivoAnulacion`), no cuenta en totales, reversión de stock atómica. Vendedora puede anular su propia venta del turno.
+2. ✅ Descuento editable (commit `33dc571`).
+3. ✅ Alta rápida de producto en la venta (commit `bd87340`).
+4. ✅ Cancelar venta (local 2026-05-22, pendiente deploy): anular solo mientras el turno esté ABIERTO. Venta marcada ANULADA + `anuladaPor` + `motivoAnulacion`, no cuenta en totales, reversión de stock atómica, Vendedora puede anular sus propias del turno.
 5. Retiro de caja: modelo `MovimientoCaja` (varios retiros por turno); esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede, registrado.
 6. Importador de catálogo (Agustín normaliza la planilla, Code arma el import).
 7. Devoluciones (P2.2) + comprobante por WhatsApp (lo que quedaba del 6.5 original).
@@ -124,7 +132,7 @@ Ninguno.
 
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
-- **Último commit en main**: `0c3f076` (guard doble submit + error genérico).
+- **Último commit en main**: anular venta (local, sin push). Anterior pusheado: `bd87340` (alta rápida).
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.

@@ -273,7 +273,9 @@ export function VentaNuevaForm() {
       // Éxito: navegar a éxito. NO reseteamos el ref ni `cobrando`: queremos
       // que cualquier tap residual mientras Next desmonta el form siga siendo
       // ignorado. El ref se descarta cuando el componente se unmonta.
-      router.push(`/ventas/exito?codigo=${encodeURIComponent(res.codigoCorto)}`);
+      router.push(
+        `/ventas/exito?codigo=${encodeURIComponent(res.codigoCorto)}&id=${encodeURIComponent(res.ventaId)}`,
+      );
     } catch (err) {
       // Nunca filtrar el mensaje crudo de Prisma/DB al cajero. Logueamos el
       // error real (Vercel Function logs / consola del browser en dev) y

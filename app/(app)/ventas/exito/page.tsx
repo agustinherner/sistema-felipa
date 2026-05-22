@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { prisma } from '@/lib/db';
 
 export const metadata = {
   title: 'Venta registrada',
@@ -9,17 +10,36 @@ export const metadata = {
 
 type SearchParams = {
   codigo?: string;
+  id?: string;
 };
 
-export default function VentaExitoPage({
+export default async function VentaExitoPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
   const codigo = searchParams.codigo?.trim();
+  const ventaId = searchParams.id?.trim();
   if (!codigo) {
     redirect('/ventas/nueva');
   }
+
+  let turnoAbierto = false;
+  if (ventaId) {
+    const venta = await prisma.venta.findUnique({
+      where: { id: ventaId },
+      select: {
+        anuladaEn: true,
+        turno: { select: { cierreEn: true } },
+      },
+    });
+    turnoAbierto =
+      !!venta && !venta.anuladaEn && !!venta.turno && venta.turno.cierreEn === null;
+  }
+
+  const anularHref = ventaId
+    ? `/ventas?venta=${encodeURIComponent(ventaId)}`
+    : null;
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-6 py-16 text-center">
@@ -51,6 +71,15 @@ export default function VentaExitoPage({
           <Link href="/ventas">Ver historial</Link>
         </Button>
       </div>
+
+      {turnoAbierto && anularHref && (
+        <Link
+          href={anularHref}
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-rose-700 hover:underline"
+        >
+          ¿Registraste algo mal? Anular esta venta
+        </Link>
+      )}
     </div>
   );
 }

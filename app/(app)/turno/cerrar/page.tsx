@@ -36,7 +36,7 @@ export default async function CerrarTurnoPage() {
   if (!turno) redirect('/turno/abrir');
 
   const ventas = await prisma.venta.findMany({
-    where: { turnoId: turno.id },
+    where: { turnoId: turno.id, anuladaEn: null },
     select: { metodosPago: true, total: true },
   });
 
