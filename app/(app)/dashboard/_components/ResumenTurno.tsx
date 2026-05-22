@@ -170,7 +170,7 @@ export function ResumenTurno({
               Retirar de caja
             </Button>
             <Button asChild variant="outline" className="sm:flex-1">
-              <Link href="/turno/abrir">
+              <Link href="/turno/cerrar">
                 <LogOut className="h-4 w-4" />
                 Cerrar turno
               </Link>

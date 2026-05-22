@@ -113,7 +113,7 @@ export function HistorialModal({
                           <>
                             {' — '}
                             <a
-                              href={`/ventas/${m.ventaId}`}
+                              href={`/ventas?venta=${m.ventaId}`}
                               className="text-primary underline-offset-2 hover:underline"
                             >
                               {m.ventaCodigoCorto}

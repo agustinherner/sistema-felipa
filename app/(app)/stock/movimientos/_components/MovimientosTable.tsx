@@ -93,7 +93,7 @@ export function MovimientosTable({
                       <p className="text-xs text-muted-foreground">
                         ↳{' '}
                         <Link
-                          href={`/ventas/${f.ventaId}`}
+                          href={`/ventas?venta=${f.ventaId}`}
                           className="text-primary underline-offset-2 hover:underline"
                         >
                           {f.ventaCodigoCorto}
