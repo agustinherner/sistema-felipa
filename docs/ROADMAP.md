@@ -153,7 +153,7 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 
 ---
 
-## Sprint 6 — Turnos, Ventas y Demo a Felipa 🔄 (código completo, deploy pendiente)
+## Sprint 6 — Turnos, Ventas y Demo a Felipa ✅
 
 **Objetivo**: cerrar el flujo central del sistema (cierre de caja + ventas + historial + dashboard del vendedor) y dejarlo desplegado en Vercel + Neon para que Felipa lo pruebe.
 
@@ -224,37 +224,29 @@ Construir un sistema web de gestión de stock y ventas para Felipa 1 (bazar en S
 - `/productos` abierta a VENDEDOR (`requireAuth(['ADMIN', 'VENDEDOR'])`). Columnas Costo y Acciones gateadas con permissions a nivel HTML. Botón "Nuevo producto" gateado con `permissions.crear`.
 - Rutas de escritura (`/productos/nuevo`, `/productos/[id]/editar`) y server actions ya tenían `requireAuth(['ADMIN'])` — sin cambios necesarios.
 
-### Hito 🚀 DEMO A FELIPA — listo para deploy
+### Hito 🚀 DEMO A FELIPA ✅ (2026-05-09)
 
-Todos los sub-sprints pre-demo completados (6.0 a 6.4). Próximo paso: deploy.
-
-**Tareas del deploy**:
-- Crear cuenta Neon, proyecto `felipa`, branch `demo` con seed de bazar realista.
-- Crear proyecto Vercel conectado al repo de GitHub.
-- Configurar env vars (`DATABASE_URL` con pooler, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, etc.).
-- Migraciones contra Neon (`prisma migrate deploy`).
-- Seed contra Neon una vez (con admin inicial + datos de bazar).
-- Verificación: login, apertura de turno, una venta completa, cierre de turno.
-- Crear usuario Vendedor y verificar permisos (sin costos, sin acciones de admin, solo sus ventas).
-- Compartir URL a Felipa.
-- **Comunicación al cliente**: avisarle explícitamente que (a) las devoluciones, comprobante por WhatsApp, dashboard del admin y reportes vienen en la próxima fase; (b) el fichero formal y el calendario de turnos quedan para post-MVP; (c) el sistema sigue conviviendo con SSL Soft Gescom para facturación AFIP.
-
-**Criterio de "listo"**: Felipa entra a la URL del demo desde su PC, se loguea con sus credenciales, abre un turno, registra una venta y la ve en el historial. Dashboard del vendedor le muestra el turno actual con datos reales.
-
-**Duración estimada total** (Sprint 6 hasta demo): 4-5 sesiones.
+Deploy completado: commit `7d70496` en `main`, URL live **https://sistema-felipa.vercel.app**.
+Neon (São Paulo, sa-east-1), Vercel auto-deploy desde `main`. Login, ventas, stock, dashboard del vendedor verificados en producción.
 
 ---
 
-## Sprint 6.5 — Post-demo, pre-go-live
+## Sprint 6.5 — Mejoras post-demo (feedback del hijo en mostrador)
 
-**Objetivo**: features que quedaron fuera del demo pero son parte del MVP comprometido al cliente.
+**Objetivo**: features prioritarias según el uso real del demo en el local.
 
 **Entregables**:
-- **P2.2 — Devoluciones**: buscar venta por ID corto (≤30 días), devolución total o parcial, reversión de stock atómica.
-- **Comprobante por WhatsApp**: botón en la confirmación de venta que abre `wa.me/<numero>` con un mensaje pre-armado (ID corto, total, ítems).
-- **Ajustes de UX en función del feedback del demo**: lo que Felipa pida durante el período de prueba.
+1. ✅ Fix bug registro de venta bajo concurrencia (2026-05-22) — commits `f3664a3` + `0c3f076`.
+2. Descuento editable: fuera el 10% automático; manual y opcional por % o monto fijo sobre el total; el 10% efectivo/transferencia queda como botón de un toque (no se aplica solo). Campos nuevos `descuentoTipo` + `descuentoValor`. No bloqueante.
+3. Alta rápida de producto en la venta: nombre + precio, sin costo ni variante, marcada "incompleta" para que Admin complete después. Descuenta stock. Disponible para Vendedora, registrada quién.
+4. Cancelar venta: anular solo mientras el turno de esa venta esté ABIERTO. La venta anulada no se borra (marca ANULADA + `anuladaPor` + `motivoAnulacion`), no cuenta en totales, reversión de stock atómica. Vendedora puede anular su propia venta del turno.
+5. Retiro de caja: modelo `MovimientoCaja` (varios retiros por turno); esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede, registrado.
+6. Importador de catálogo (Agustín normaliza la planilla, Code arma el import).
+7. Devoluciones (P2.2) + comprobante por WhatsApp.
 
-**Duración estimada**: 1-2 sesiones (depende del feedback del demo).
+**Permisos (decididos por PO)**: la Vendedora puede aplicar descuentos, hacer retiros y anular sus ventas del turno; todo queda registrado con quién. Sin tope al inicio.
+
+**Duración estimada**: 3-4 sesiones.
 
 ---
 
@@ -335,7 +327,7 @@ Cada una se evalúa y cotiza por separado. No se promete nada en el MVP.
 - [x] Sprint 6.2 (historial de ventas) ✅ 2026-05-09 — commit `e2e9a00` en main
 - [x] Sprint 6.3 (dashboard del vendedor) ✅ 2026-05-09 — squash commit `984ac94` en main
 - [x] Sprint 6.4 (refactor /productos para vendedor) ✅ 2026-05-09 — squash commit `137bcdb` en main
-- [ ] **Deploy del demo a Vercel + Neon** — próxima tarea
+- [x] Deploy del demo a Vercel + Neon ✅ 2026-05-09
 - [ ] Definir estrategia de backups de la DB (Neon tiene point-in-time restore en plan pago, en free tier evaluar `pg_dump` programado o aceptar el riesgo durante el demo)
 - [ ] Definir dominio (`felipa.vercel.app` para el demo está bien; dominio custom para go-live a definir con cliente)
 - [ ] Definir política de actualizaciones post-entrega

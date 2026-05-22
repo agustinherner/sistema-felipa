@@ -532,4 +532,46 @@ CREATE UNIQUE INDEX "turno_user_abierto_unique"
 
 ---
 
+## 2026-05-22 · Fase de prototipo post-demo: trabajar derecho en `main`, deploy continuo
+
+**Por qué**: con el demo ya en producción y el cliente probándolo activamente (sabe que está en fase de prototipo), la coreografía de branch-por-sprint + squash agrega fricción sin valor en esta etapa. Se trabaja directo en `main`; Code commitea local con mensajes claros; Agustín controla el `push` (que dispara el deploy automático a Vercel) después de verificar. Worktree opcional si en algún momento conviene.
+
+**Reverso parcial**: ajusta —solo para la fase de prototipo post-demo— la decisión del 2026-05-08 ("branch dedicada por sprint + squash merge"). Cuando se acerque el go-live formal, con usuarios reales y datos que no se pueden romper, se vuelve a un flujo con más ceremonia.
+
+**Alternativas descartadas**:
+- Mantener branch-por-sprint en prototipo: fricción innecesaria, retrasa el ciclo de feedback con el cliente.
+
+---
+
+## 2026-05-22 · Registro de venta robusto bajo concurrencia: advisory lock transaccional + guard de doble submit
+
+**Contexto**: bug reportado desde el mostrador — "la primera venta sale, la segunda tira error". No se reproducía secuencialmente; solo bajo concurrencia (doble tap en la pantalla táctil sobre "Confirmar cobro", ensanchado por la latencia de Neon/Vercel).
+
+**Causa raíz**: `generarCodigoCortoVenta` calculaba el NNN como `count(ventas del día) + 1` sin sincronización. Dos transacciones concurrentes leían el mismo count, computaban el mismo `codigoCorto`, una ganaba el unique y la otra fallaba con P2002 (que además llegaba crudo al cajero como "Unique constraint failed...").
+
+**Decisión (dos capas)**:
+
+1. **Generación de `codigoCorto` serializada** (commit `f3664a3`):
+   - `pg_advisory_xact_lock(hashtext(sucursalId), hashtext(ddmm))` al entrar — serializa la generación por slot sucursal-día. Se libera al commit/rollback de la transacción.
+   - **Por qué transaccional y no de sesión**: los advisory locks de sesión NO son seguros con pgbouncer en modo transacción (el pooler de Neon), porque la conexión se reasigna entre transacciones. El `_xact_` se libera al cerrar la transacción, antes de devolver la conexión al pool. Variante correcta para Neon.
+   - NNN calculado con `max(codigoCorto)` filtrando por prefijo-día (`startsWith`), no con `count(*) + 1`.
+   - **Por qué `max()` y no `count()`**: `count+1` se rompe en cuanto haya gaps (que vamos a crear con la cancelación de ventas del 6.5). `max()+1` es robusto a gaps, que ya estaban aceptados en el formato del código.
+
+2. **Guard contra doble submit en el cobro** (commit `0c3f076`):
+   - El fix de `codigoCorto` elimina el *error*, pero no el *disparador*. Con la colisión resuelta, un doble tap pasaría a crear **dos ventas duplicadas en silencio** (stock y caja duplicados) — operativamente peor que el error visible. Por eso la segunda capa.
+   - Guard síncrono con `useRef(false)`, chequeado y seteado en el mismo tick al entrar al handler, antes de cualquier `await` o `setState`. El `disabled={cobrando}` queda solo como feedback visual (es async, no sirve de guard).
+   - **No se resetea el ref en el camino feliz**: tras el `router.push` el form se desmonta; no resetear cierra la ventana del desmontaje. Sí se resetea en error de negocio o catch, para permitir reintento.
+
+**Convención adoptada**: (a) para "código correlativo único por slot" con riesgo de race, usar advisory lock **transaccional** (pooler-safe) + cálculo por `max()`, no `count()`; (b) nunca filtrar mensajes crudos de Prisma/DB a la UI del usuario final: loguear el error real y mostrar un genérico. Engancha con la deuda del string-match de "cuenta desactivada" en login — misma familia, mismo criterio.
+
+**Follow-up anotado**: idempotencia server-side (rechazo por `Idempotency-Key`) queda para otra vuelta; el guard de cliente alcanza para esta etapa.
+
+**Alternativas descartadas**:
+- Solo aumentar los reintentos del retry: no resuelve la race, la hace menos probable.
+- `SELECT FOR UPDATE` / isolation serializable: más caro, serializa de más para el volumen de Felipa.
+- Advisory lock de sesión: no es seguro con el pooler de Neon.
+- Dejar solo el fix de `codigoCorto`: convertía un error ruidoso en un duplicado silencioso.
+
+---
+
 _(Próximas decisiones van acá abajo, en orden cronológico.)_
