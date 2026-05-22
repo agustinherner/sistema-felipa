@@ -7,7 +7,7 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 6.5 cerrado (2026-05-22). Todos los items completados y deployados. Próximo: Sprint 7 — Dashboard del admin y reportes (P7 + P8).**
+**Sprint 7 cerrado (2026-05-22). Dashboard del admin (P7) + Reportes (P8) completos y deployados. Próximo: sprint de housekeeping (sugerido) — unificar naming de roles + sidebar responsive en mobile. A confirmar con Agustín.**
 
 ## Tarea en curso
 
@@ -15,25 +15,19 @@ Ninguna.
 
 ## Último avance
 
-**Sprint 6.5 — COMPLETO + deployado (2026-05-22)**. Los 7 items planificados + 3 mejoras UX post-sprint, todo en producción.
+**Sprint 7 — COMPLETO + deployado (2026-05-22)**. Dashboard del admin (P7) + Reportes (P8) en producción.
 
-7 items del sprint:
-1. ✅ **Fix bug registro de venta bajo concurrencia** — commits `f3664a3` + `0c3f076`. Advisory lock transaccional pooler-safe + NNN por `max()` + guard `useRef` contra doble submit + mensajes genéricos (no filtra Prisma a la UI).
-2. ✅ **Descuento editable** — commit `33dc571`. Reverso del 10% automático: descuento manual y opcional (% o monto fijo), preset 10% como botón. Campos `descuentoTipo`, `descuentoValor`, `descuentoTotal` snapshot.
-3. ✅ **Alta rápida de producto en la venta** — commit `bd87340`. Solo nombre + precio desde la pantalla de venta; `incompleto=true` + `creadoPorId`. Admin completa después; al guardar con costoBase>0 y categoría se auto-desmarca. Stock inicial=1.
-4. ✅ **Anular venta del turno abierto** — commit `4e0b0f0`. `anuladaEn` + `anuladaPorId` + `motivoAnulacion`; reversión atómica de stock. Excluida de agregaciones. Badge + filtro en `/ventas`. Guard `useRef`.
-5. ✅ **Retiro de caja durante el turno** — commit `331463b`. Modelo `MovimientoCaja` (varios por turno). Esperado = inicial + ventas efectivo − retiros. UI en dashboard + cierre. Vendedora puede.
-6. ✅ **Importador de catálogo** — commit `c74328a`. Script idempotente para planilla normalizada.
-7. ✅ **Devoluciones + comprobante por WhatsApp** — commit `8bda9bb`. Modelos `Devolucion` + `ItemDevolucion`, ≤30 días, parcial/total con tope vs ya devuelto, stock revertido. Badges en historial. Botón WhatsApp prominente en éxito + sutil en detalle. Migración deployada a Neon.
+**Parte 1 — Dashboard del admin (commit `3fc152c`)**. El Admin ve, además de su turno personal (sin cambios), una sección de negocio: caja del día (total + desglose por método + cierres del día con diferencia destacada + turnos abiertos con alerta >12h), top 10 productos del mes (neto de devoluciones), ventas por método del mes, y alertas (turnos largos, stock negativo, productos incompletos). Vendedor sin cambios. Nuevo dominio `lib/reportes/` + helper `lib/fecha.ts` (cortes en hora AR, UTC−3 fijo). Decimals serializados a string.
 
-3 mejoras UX post-sprint (2026-05-22):
-- ✅ **"Guardar y cargar otro"** — commit `5308d8e`. Resetea form completo, muestra banner verde de éxito (2.5s), devuelve foco al nombre.
-- ✅ **Tachito eliminar en tabla de productos** — commit `5308d8e`. Icono al lado del lápiz (solo Admin), confirm dialog con `useRef`, soft delete vía `desactivarProducto`, listado filtra `activo:true` para que la fila desaparezca.
-- ✅ **Fixes de links rotos** — commit `42bf0b3`. "Cerrar turno" en dashboard apuntaba a `/turno/abrir` → `/turno/cerrar`. Links a `/ventas/${ventaId}` desde stock/movimientos (404) → `/ventas?venta=${ventaId}` (deep link al modal).
+**Parte 2 — Reportes (commit `99daa6a`)**. Ruta `/reportes` Admin-only con filtro de rango (default mes actual, parseo defensivo) y 5 reportes: ventas totales por día/semana/mes, productos más vendidos, ventas por método, ventas por vendedor, horas trabajadas por vendedor. Export CSV client-side (BOM UTF-8 para Excel en Windows). Bucketing por período en hora AR. Link "Reportes" en sidebar solo Admin.
+
+Pendiente de verificación en prod con datos reales (la DB local es seed): cuadre de métodos del día = total vendido, y que las ventas nocturnas caigan en el día AR correcto. Lo verifica Agustín en producción.
 
 ---
 
 ## Historial de sprints anteriores
+
+**Sprint 7 — Dashboard del admin + Reportes completado (2026-05-22)** — commits `3fc152c` + `99daa6a` en `main`, deployado. P7 (dashboard de negocio del admin) + P8 (5 reportes + export CSV client-side). Sin migración. Decisiones en `DECISIONES.md`.
 
 **Sprint 6.5 — Mejoras post-demo completado (2026-05-22)** — `main`, deployado a producción. 7 items (fix concurrencia, descuento manual, alta rápida, anular venta, retiro de caja, importador, devoluciones+WhatsApp) + 3 mejoras UX (limpiar form, tachito eliminar, links rotos). Decisiones en `DECISIONES.md`.
 
@@ -57,16 +51,12 @@ Ninguna.
 
 ## Próxima tarea
 
-**Sprint 7 — Dashboard del admin y reportes (P7 + P8)**.
+**Sprint de housekeeping** (sugerido, a confirmar):
 
-Entregables (Plan Base):
-- **P7 Dashboard del admin**: caja del día (suma de ventas + cierres con diferencias), productos más vendidos del mes, ventas por método de pago, alertas básicas (turnos abiertos sin cerrar, stock negativo, ventas con devolución pendiente).
-- **P8 Reportes**: ventas totales por día/semana/mes, productos más vendidos, ventas por método de pago, ventas por vendedor, horas trabajadas por vendedor (suma de duración de turnos cerrados).
-- Exportación a CSV.
+- **Unificar naming de roles** a una sola convención en `requireAuth([...])`. Auditado en Sprint 7: 4 formas conviviendo en 16 rutas. Inventario en `DECISIONES.md`.
+- **Sidebar responsive en mobile** (drawer/colapsable). Hoy el sidebar fijo de 240px estrangula el viewport <400px en todas las rutas; los reportes son los que más sufren.
 
-Diferido al upgrade a Intermedio: gráficos interactivos avanzados, comparativa entre sucursales (no aplica mono-sucursal), exportación a Excel con formato, alertas automáticas de stock bajo.
-
-Ver `ROADMAP.md` para el plan completo.
+Ambas son deudas acotadas y ya medidas. Ver `ROADMAP.md` para alternativas si preferimos avanzar con features.
 
 ## Bloqueos
 
@@ -90,8 +80,7 @@ Ninguno.
 
 ### Alcance y demo intermedio
 - Alcance inicial: **MVP (Plan Base)** de la propuesta.
-- **Demo activo en producción** — incluye: login, ventas, stock para vendedor, historial, dashboard del vendedor, cierre de caja, consulta de productos (sin costos para vendedor).
-- **No incluye en el demo**: devoluciones, comprobante por WhatsApp, dashboard del admin, reportes (esos vienen en Sprint 6.5 y Sprint 7, post-demo).
+- **Producción activa** — el sistema en prod ya incluye todo el Plan Base: login, ventas, stock para vendedor, historial, dashboard del vendedor, cierre de caja, consulta de productos (sin costos para vendedor), **devoluciones, comprobante por WhatsApp, dashboard del admin y reportes** (estos últimos cuatro entregados en Sprint 6.5 y Sprint 7).
 - **Diferidos a post-MVP**: integración AFIP, calendario de turnos, fichero formal de jornada laboral, alertas automáticas de stock bajo, gráficos avanzados.
 
 ### Cliente y operación
@@ -134,7 +123,7 @@ Ninguno.
 
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
-- **Último commit en main**: `42bf0b3` (fixes de links rotos: Cerrar turno + deep link a venta desde stock).
+- **Último commit en main**: `99daa6a` (Sprint 7 — reportes), más el commit de docs de este cierre.
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.
@@ -142,7 +131,8 @@ Ninguno.
 
 ## Decisiones pendientes
 
-- **Inconsistencia de naming de roles**: tres formas conviviendo (`'ADMIN'` uppercase, `Role.admin` lowercase, `roles: ['admin', 'vendedor']`). Candidato a sprint de housekeeping.
+- **Inconsistencia de naming de roles (AUDITADA en Sprint 7)**: 4 convenciones en `requireAuth([...])` sobre 16 rutas — `['ADMIN']`, `['admin']`, `['ADMIN','VENDEDOR']` y `['admin','vendedor']`. Funciona porque `requireAuth` normaliza, pero no está unificado. Detalle en `DECISIONES.md`. Candidato fuerte a próximo sprint.
+- **Sidebar no responsive en mobile**: ancho fijo 240px estrangula el viewport en pantallas <400px, afecta a todas las rutas. Choca con la regla de responsive obligatorio. Candidato a próximo sprint.
 - **`StockPermissions.verCosto` no consumido aún**.
 - **`obtenerHistorialVariante` abierto a Vendedor**: decisión documentada.
 - **Deuda técnica login**: error de "cuenta desactivada" matcheado por string literal. Migrar a código de error custom.

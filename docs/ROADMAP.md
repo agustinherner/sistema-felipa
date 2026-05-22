@@ -255,14 +255,20 @@ Neon (São Paulo, sa-east-1), Vercel auto-deploy desde `main`. Login, ventas, st
 
 ---
 
-## Sprint 7 — Dashboard del admin y reportes (P7 + P8)
+## Sprint 7 — Dashboard del admin y reportes (P7 + P8) ✅ (2026-05-22)
 
 **Objetivo**: dar a Felipa información útil del negocio.
 
 **Entregables (Plan Base)**:
-- **P7 Dashboard del admin**: caja del día (suma de ventas + cierres de caja del día con diferencias), productos más vendidos del mes, ventas por método de pago, alertas básicas (turnos abiertos sin cerrar, stock negativo, ventas con devolución pendiente).
-- **P8 Reportes**: ventas totales por día/semana/mes, productos más vendidos, ventas por método de pago, ventas por vendedor, **horas trabajadas por vendedor** (suma de duración de turnos cerrados).
-- Exportación a CSV.
+- **P7 Dashboard del admin** ✅ — commit `3fc152c`. Caja del día (total + desglose por método + cierres del día con diferencia destacada + turnos abiertos con alerta >12h), top 10 productos del mes (neto de devoluciones), ventas por método del mes, alertas (turnos largos, stock negativo, productos incompletos). Vendedor sin cambios.
+- **P8 Reportes** ✅ — commit `99daa6a`. Ruta `/reportes` Admin-only con filtro de rango (default mes actual, parseo defensivo). 5 reportes: ventas totales por día/semana/mes (granularidad seleccionable, semana lun–dom), productos más vendidos (neto de devoluciones), ventas por método de pago, ventas por vendedor, horas trabajadas por vendedor.
+- **Exportación a CSV** ✅ — client-side, escapado RFC-4180, BOM UTF-8 para Excel en Windows.
+
+**Decisiones clave (ver `DECISIONES.md`)**:
+- Timezone AR (UTC−3 fijo) para todos los cortes de día/mes y bucketing por período.
+- Semántica de métodos de pago: porción del JSON, no total de la venta.
+- Venta → vendedor por `Venta.usuarioId`.
+- Gate de rol auditado: 4 convenciones de naming conviviendo, no unificadas en este sprint.
 
 **Diferido al upgrade a Intermedio**:
 - Gráficos interactivos avanzados.
@@ -270,7 +276,7 @@ Neon (São Paulo, sa-east-1), Vercel auto-deploy desde `main`. Login, ventas, st
 - Exportación a Excel con formato.
 - Alertas automáticas de stock bajo.
 
-**Duración estimada**: 2 semanas.
+**Duración real**: 1 sesión (parte 1 + parte 2 + cierre).
 
 ---
 

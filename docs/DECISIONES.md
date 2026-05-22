@@ -666,4 +666,63 @@ Las agregaciones de caja (`calcularEfectivoVendidoEnTurno`, `obtenerResumenTurno
 
 ---
 
+## 2026-05-22 · Semántica de métodos de pago (dashboard y reportes)
+
+**Por qué**: la cantidad de ventas por método se cuenta una vez por cada método usado en la venta (un pago mixto suma a cada método). El monto por método es la **porción** pagada con ese método, tomada del JSON `Venta.metodosPago`, **no** el total de la venta — así la suma por método cuadra con el total vendido.
+
+**Agregación**: en memoria. `Venta.metodosPago` es un campo JSON, no relacional, y `groupBy` de Prisma no opera dentro de JSON. Para el volumen de Felipa (caja diaria ~$280k, picos navideños hasta $1.5M, ~50–150 ventas/día) traer las ventas del rango y agregar en JS está perfecto, sin SQL raw.
+
+**Normalización**: el agregador acepta `'EFECTIVO'`/`'efectivo'` indistintamente, porque en la DB conviven seeds del Sprint 6.0 (lowercase) con ventas del Sprint 6.1 en adelante (uppercase). Mientras no se migren los datos viejos, el helper `metodoCanonico` cubre ambos casos.
+
+**Alternativas descartadas**:
+- **Contar 1 venta una sola vez (en su método "principal")**: arbitrario en pagos mixtos. La métrica "cuántas ventas tocaron este método" es más accionable.
+- **Sumar el total de la venta a todos los métodos usados**: doble conteo de plata; rompe el cuadre con el total vendido.
+
+---
+
+## 2026-05-22 · Gate de rol y auditoría de naming de `requireAuth`
+
+**Por qué**: las páginas chequean rol con `requireAuth()` + comparación sobre `SessionUser.role` (normalizado a lowercase). El dashboard del admin (bifurcación de UI) y `/reportes` (acceso Admin-only) usan `user.role === 'admin'`. `requireAuth([...])` también acepta una whitelist de roles y hace el redirect server-side cuando no matchea — ambos caminos llegan al mismo lugar porque la función normaliza internamente.
+
+**Auditoría de Sprint 7**: 4 convenciones conviviendo en `requireAuth([...])` sobre 16 rutas:
+- `['ADMIN']` (uppercase, Admin-only): `productos/nuevo`, `productos/[id]/editar`, `stock/ingreso`, `stock/movimientos`, `usuarios`.
+- `['admin']` (lowercase, Admin-only): `configuracion`, `reportes` (placeholder previo, reemplazado).
+- `['ADMIN', 'VENDEDOR']` (uppercase, ambos): `dashboard`, `stock`, `productos`, `ventas`.
+- `['admin', 'vendedor']` (lowercase, ambos): `ventas/nueva`.
+
+**Decisión**: NO unificar en Sprint 7 (scope/riesgo). Funciona porque `requireAuth` normaliza, pero la convención no está unificada. Queda para un sprint de housekeeping con el inventario ya hecho. `/reportes` usa el patrón del dashboard (`user.role === 'admin'`) para no introducir una quinta forma.
+
+---
+
+## 2026-05-22 · Venta → vendedor en reportes
+
+**Por qué**: "Ventas por vendedor" resuelve el vendedor por `Venta.usuarioId` (campo directo del schema, canónico, siempre presente), set por `crearVenta` con el id del usuario logueado en el momento de la venta. No usamos `Venta.turnoId → Turno.userId` porque `turnoId` es `nullable` y `usuarioId` es el dato canónico de la venta.
+
+**Caveat aceptado**: "Horas trabajadas por vendedor" sale de `Turno.userId`. En la operación normal de Felipa los dos coinciden (el usuario que abre el turno es el que registra las ventas de ese turno), pero si una venta se registra con un usuario distinto al dueño del turno, los dos reportes pueden no cruzar. Aceptado por improbable — 4 personas en mostrador, todas hacen todo, no hay turnos compartidos.
+
+**Alternativas descartadas**:
+- **Resolver vendedor por `Turno.userId`**: forzaría a tener turno asignado para contabilizar la venta. Ventas seedeadas sin turno romperían el reporte.
+- **Tomar el primer movimiento de stock asociado a la venta**: redundante y frágil — el `usuarioId` de la venta ya es la verdad.
+
+---
+
+## 2026-05-22 · Timezone en dashboard y reportes: hora AR fija
+
+**Por qué**: todos los cortes de día/mes y el bucketing por período se calculan en hora de Argentina (`America/Argentina/Buenos_Aires`, UTC−3 fijo, sin DST desde 2009), no en UTC ni en la TZ del runtime. Vercel corre UTC y Neon en São Paulo; filtrar "hoy" o "este mes" con la fecha del server metería las ventas nocturnas (21:00–23:59 hora AR) en el día equivocado.
+
+**Implementación**: `lib/fecha.ts` con `rangoDiaAR`, `rangoMesAR`, `rangoEntreFechasAR` (para `/reportes`, recibe `YYYY-MM-DD` civiles) y `bucketDiaAR`/`bucketSemanaAR`/`bucketMesAR` para el agrupamiento. Construidos con `Intl.DateTimeFormat` (timezone explícito) + `Date.UTC` (que normaliza overflow), no con `Date.getMonth()` del runtime.
+
+**Semana**: lunes a domingo. La clave del bucket es el lunes de esa semana en hora AR.
+
+**Notas adicionales**:
+- Las duraciones de turnos ("horas trabajadas") son resta de timestamps, timezone-independiente — no necesitan conversión.
+- Un turno cuenta en "horas trabajadas" si su `cierreEn` cae dentro del rango (cuenta entero aunque haya abierto antes del rango).
+- El CSV lleva BOM UTF-8 para que Excel en el Windows del local abra bien los acentos.
+
+**Alternativas descartadas**:
+- **Confiar en la TZ del runtime**: Vercel UTC y la PC local AR darían resultados distintos para los mismos datos.
+- **Usar una librería tipo `date-fns-tz` o `luxon`**: agregar dependencia + bundle size por una operación que UTC−3 fijo + `Intl` resuelven en 30 líneas.
+
+---
+
 _(Próximas decisiones van acá abajo, en orden cronológico.)_
