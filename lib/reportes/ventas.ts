@@ -2,6 +2,12 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import {
+  bucketDiaAR,
+  bucketMesAR,
+  bucketSemanaAR,
+  type BucketPeriodo,
+} from '@/lib/fecha';
+import {
   METODOS_PAGO,
   type MetodoPago,
   type RangoFechas,
@@ -111,5 +117,88 @@ export async function ventasPorMetodoPago({
     metodo: m,
     cantidad: acumulado[m].cantidad,
     monto: serializarDecimal(acumulado[m].monto),
+  }));
+}
+
+/* ────────────────────────────────────────────────────────────────────────── *
+ * Ventas agrupadas por período (día / semana / mes)
+ *
+ * Reusa los helpers de bucketing de `lib/fecha.ts` para que cada venta caiga
+ * en su período en HORA CIVIL ARGENTINA. Hacer el bucketing sobre el
+ * timestamp UTC crudo metería las ventas nocturnas en el día (o semana o mes)
+ * equivocado.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export type Granularidad = 'dia' | 'semana' | 'mes';
+
+export type VentasPeriodoFila = {
+  clave: string;
+  etiqueta: string;
+  cantidad: number;
+  monto: string;
+};
+
+const BUCKET_POR_GRANULARIDAD: Record<
+  Granularidad,
+  (d: Date) => BucketPeriodo
+> = {
+  dia: bucketDiaAR,
+  semana: bucketSemanaAR,
+  mes: bucketMesAR,
+};
+
+/**
+ * Ventas no anuladas del rango, agrupadas por período. Devuelve los buckets
+ * que tuvieron al menos una venta, ordenados ascendentemente. Los Decimals
+ * salen como string.
+ */
+export async function ventasPorPeriodo({
+  desde,
+  hasta,
+  granularidad,
+}: RangoFechas & { granularidad: Granularidad }): Promise<VentasPeriodoFila[]> {
+  const ventas = await prisma.venta.findMany({
+    where: { anuladaEn: null, creadaEn: { gte: desde, lte: hasta } },
+    select: { total: true, creadaEn: true },
+    orderBy: { creadaEn: 'asc' },
+  });
+
+  const bucketear = BUCKET_POR_GRANULARIDAD[granularidad];
+
+  type Acc = {
+    clave: string;
+    etiqueta: string;
+    inicio: Date;
+    cantidad: number;
+    monto: Prisma.Decimal;
+  };
+  const acc: Map<string, Acc> = new Map();
+
+  for (const v of ventas) {
+    const b = bucketear(v.creadaEn);
+    const cur = acc.get(b.clave);
+    if (cur) {
+      cur.cantidad += 1;
+      cur.monto = cur.monto.add(v.total);
+    } else {
+      acc.set(b.clave, {
+        clave: b.clave,
+        etiqueta: b.etiqueta,
+        inicio: b.inicio,
+        cantidad: 1,
+        monto: new Prisma.Decimal(v.total),
+      });
+    }
+  }
+
+  const filas: Acc[] = [];
+  acc.forEach((a) => filas.push(a));
+  filas.sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
+
+  return filas.map((f) => ({
+    clave: f.clave,
+    etiqueta: f.etiqueta,
+    cantidad: f.cantidad,
+    monto: serializarDecimal(f.monto),
   }));
 }

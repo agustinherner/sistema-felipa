@@ -126,3 +126,83 @@ export function fechaCivilAR_ISO(d: Date): string {
   const { year, month, day } = fechaCivilAR(d);
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
+
+/* ────────────────────────────────────────────────────────────────────────── *
+ * Bucketing por período (para /reportes)
+ *
+ * Cada función toma un `Date` UTC (típicamente `Venta.creadaEn`) y devuelve:
+ *   - una `clave` estable para agrupar (Map key)
+ *   - una `etiqueta` amigable para mostrar
+ *   - un `inicio` como Date UTC (primer instante del bucket en AR) para
+ *     ordenar buckets crónologicamente
+ *
+ * El bucketing tiene que hacerse sobre la fecha civil AR — usar `getUTCDate`
+ * o `getMonth` sobre el timestamp UTC crudo metería las ventas nocturnas en
+ * el día/semana/mes equivocado.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const NOMBRES_MES_AR = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
+function capitalizar(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+export type BucketPeriodo = {
+  clave: string;
+  etiqueta: string;
+  inicio: Date;
+};
+
+/** Bucket por día civil AR. Clave `YYYY-MM-DD`, etiqueta `DD/MM/YYYY`. */
+export function bucketDiaAR(d: Date): BucketPeriodo {
+  const { year, month, day } = fechaCivilAR(d);
+  const clave = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const etiqueta = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+  const inicio = utcDesdeCivilAR(year, month, day, 0, 0, 0, 0);
+  return { clave, etiqueta, inicio };
+}
+
+/**
+ * Bucket por semana civil AR, lunes–domingo. Clave = `YYYY-MM-DD` del lunes
+ * (en AR). Etiqueta = `Sem del DD/MM` referenciando al lunes.
+ *
+ * Calculamos el día de la semana tomando el primer instante AR del día
+ * (UTC 03:00) y leyendo `getUTCDay()`, que coincide con el día civil AR.
+ */
+export function bucketSemanaAR(d: Date): BucketPeriodo {
+  const { year, month, day } = fechaCivilAR(d);
+  const inicioDiaCivil = utcDesdeCivilAR(year, month, day, 0, 0, 0, 0);
+  const dow = inicioDiaCivil.getUTCDay(); // 0=domingo, 1=lunes, ..., 6=sábado
+  const offsetALunes = dow === 0 ? 6 : dow - 1;
+  // Restamos N días en UTC: como ambos están a la misma hora civil 00:00 AR,
+  // restar 86400000ms exactos lleva al mismo 00:00 AR del día anterior.
+  const lunesUtc = new Date(
+    inicioDiaCivil.getTime() - offsetALunes * 24 * 60 * 60 * 1000,
+  );
+  const lunesCivil = fechaCivilAR(lunesUtc);
+  const clave = `${lunesCivil.year}-${String(lunesCivil.month).padStart(2, '0')}-${String(lunesCivil.day).padStart(2, '0')}`;
+  const etiqueta = `Sem del ${String(lunesCivil.day).padStart(2, '0')}/${String(lunesCivil.month).padStart(2, '0')}`;
+  return { clave, etiqueta, inicio: lunesUtc };
+}
+
+/** Bucket por mes civil AR. Clave `YYYY-MM`, etiqueta `Mes YYYY`. */
+export function bucketMesAR(d: Date): BucketPeriodo {
+  const { year, month } = fechaCivilAR(d);
+  const clave = `${year}-${String(month).padStart(2, '0')}`;
+  const etiqueta = `${capitalizar(NOMBRES_MES_AR[month - 1])} ${year}`;
+  const inicio = utcDesdeCivilAR(year, month, 1, 0, 0, 0, 0);
+  return { clave, etiqueta, inicio };
+}
