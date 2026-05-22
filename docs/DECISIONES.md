@@ -574,4 +574,96 @@ CREATE UNIQUE INDEX "turno_user_abierto_unique"
 
 ---
 
+## 2026-05-22 · Descuento manual y opcional (reverso del 10% automático)
+
+**Por qué**: el 10% todo-o-nada por efectivo/transferencia, definido al modelar `Venta`, no se aplica como regla automática en la realidad operativa. A veces se da, a veces no, a veces es otro porcentaje o un monto redondo. Forzar el 10% automático obligaba al cajero a "deshacerlo" en cada venta donde no aplicaba, que era la mayoría.
+
+**Reverso**: el descuento automático sale. Se reemplaza por descuento **manual y opcional** sobre el total, en dos sabores: porcentaje (`descuentoTipo = 'PORCENTAJE'`) o monto fijo (`descuentoTipo = 'MONTO'`), con el valor en `descuentoValor`. El 10% por efectivo/transferencia queda como **preset de un toque** (botón que setea `tipo = 'PORCENTAJE'` y `valor = 10`), no como aplicación automática. `descuentoTotal` se sigue snapshot-eando al guardar la venta para que los reportes históricos no recalculen.
+
+**Permisos**: la Vendedora puede aplicar descuentos sin tope al inicio. Queda registrado quién aplicó qué (por la `usuarioId` de la venta). Si en algún momento aparece abuso, se agrega tope por rol — schema ya lo soporta.
+
+**Alternativas descartadas**:
+- **Mantener el 10% automático con botón "quitar descuento"**: invierte el default operativo real (no aplicar es más común que aplicar), suma fricción a la mayoría de ventas.
+- **Tope inicial por rol** (ej: Vendedora hasta 20%, Admin sin tope): sin evidencia de abuso, agregar la regla ahora es ingeniería preventiva. Si pasa, se agrega después.
+
+---
+
+## 2026-05-22 · Alta rápida de producto desde la venta: `incompleto` + `creadoPorId`
+
+**Por qué**: durante la fase de carga del catálogo (~200 productos a mano), el cajero se topa con productos que no están cargados. Frenar la venta para hacer el alta completa (categoría, costo, variantes) es fricción operativa real. La alta rápida con solo nombre + precio resuelve el cobro inmediato y deja la deuda anotada para que Admin complete después.
+
+**Modelo**: dos campos nuevos en `Producto`:
+- `incompleto Boolean @default(false)` — flag que marca el producto como "falta data".
+- `creadoPorId String?` (FK a `User`) — quién lo dio de alta rápida (no necesariamente Admin).
+
+`crearProductoRapido` (server action, permite Admin y Vendedora) crea el `Producto` con `incompleto=true`, `costoBase=0`, sin categoría, con una variante única, y registra `Stock` + `MovimientoStock` tipo `INGRESO` con `cantidad=1`. La acción de carga completa (`editarProducto`) **auto-desmarca** `incompleto=false` cuando el admin sube `costoBase > 0` y elige categoría — sin pasos manuales.
+
+**UX**: el listado tiene badge "Incompleto" + filtro "Solo incompletos" para que el admin barra el pendiente. Se proyecta que esta funcionalidad se use intensivamente al principio y se vuelva marginal a medida que el catálogo madura.
+
+**Alternativas descartadas**:
+- **Bloquear venta hasta que el admin cargue el producto**: rompe la operación del local. Inaceptable.
+- **Alta rápida solo para Admin**: la dueña no está siempre en el local; la empleada se quedaría sin poder cobrar.
+- **Stock inicial 0 en alta rápida**: la venta se haría con stock negativo, contaminando reportes. `stockInicial=1` (corresponde a la unidad que se está vendiendo) es lo natural.
+
+---
+
+## 2026-05-22 · Cancelar venta: solo turno abierto, post-cierre es devolución
+
+**Por qué**: el cierre de caja **congela un snapshot** de la sesión (efectivo esperado, diferencia, totales) en columnas de `Turno`. Permitir anular una venta de un turno ya cerrado rompería esa invariante: la diferencia guardada dejaría de ser reproducible. Hay dos eventos distintos que la UX agrupaba mal:
+
+- **Anular**: corregir un error de carga en caliente (cobré dos veces, escaneé mal, el cliente cambió de idea antes de cobrar). Modifica el estado de la venta original, revierte stock, no afecta caja porque sucede dentro del mismo turno (el snapshot todavía no existe).
+- **Devolver**: evento nuevo, posterior, registrado aparte. La venta original queda como estaba; se crea un `Devolucion` + `ItemDevolucion` que reverte el stock y deja traza. Si la devolución es en efectivo, el cajero hace retiro manual o lo anota en observaciones — el efecto en caja no se trackea automático (ver decisión separada de devoluciones).
+
+**Implementación**: `anularVenta` (server action) valida (a) que el turno de la venta esté abierto, (b) que no esté ya anulada, (c) permisos (Admin siempre; Vendedora solo sus propias del turno). Marca `anuladaEn`, `anuladaPorId`, `motivoAnulacion` (mínimo 3 chars, obligatorio). Revierte stock en transacción atómica con `Stock.increment` + `MovimientoStock` tipo `ANULACION_VENTA` (enum nuevo). La venta no se borra — queda en el historial con badge "ANULADA" y tachado.
+
+Las agregaciones de caja (`calcularEfectivoVendidoEnTurno`, `obtenerResumenTurnoAbierto`, snapshot de cierre, `listarTurnosDelMes`) excluyen anuladas. Por eso anular tiene que pasar **antes** del cierre — el snapshot lee el estado actual al momento de cerrar.
+
+**UI**: badge "ANULADA" + tachado en `/ventas`, filtro "Ocultar anuladas", info de anulación + botón "Anular venta" con motivo y confirmación en el detalle, link sutil desde `/ventas/exito` (deep link a `/ventas?venta=<id>`). Guard de doble submit (`useRef`) en el botón de anular.
+
+**Alternativas descartadas**:
+- **Anular en cualquier momento, recalcular snapshots**: rompe la idea del snapshot histórico. Los reportes pasados dejarían de ser estables. Inaceptable.
+- **Anular solo Admin**: la empleada se equivoca y tiene que esperar a la dueña, fricción inaceptable en mostrador. Vendedora puede anular las suyas del turno; queda quién.
+- **Anulación sin motivo**: convierte la herramienta en un undo silencioso; sin motivo es imposible auditar. Mínimo 3 chars.
+
+---
+
+## 2026-05-22 · Retiro de caja: `MovimientoCaja` durante el turno
+
+**Por qué**: durante el día, el cajero saca plata de la caja por razones reales (pago a proveedor, gasto operativo, vuelto a otra caja). Sin trackearlo, al cerrar el turno el efectivo contado siempre da menos que el esperado, y la diferencia "negativa" deja de ser señal de error y pasa a ser ruido. El reporte se rompe en la práctica.
+
+**Modelo**: nuevo `MovimientoCaja` (`turnoId`, `usuarioId`, `tipo` String default `'RETIRO'`, `monto` Decimal, `motivo`, `creadoEn`). Varios retiros por turno; el `tipo` queda como String (no enum) para no migrar si en el futuro aparecen ingresos manuales (ej: `INGRESO_EFECTIVO_DESDE_OTRO_TURNO`).
+
+**Fórmula del esperado al cierre**: `efectivoInicial + ventas efectivo (excl. anuladas) − retiros`. La fórmula vive explícita en la UI de cierre (caja explicativa) para que el cajero entienda cómo se compone el número.
+
+**Permisos**: la Vendedora puede registrar retiros, queda quién y por qué (motivo mínimo 3 chars). Sin tope al inicio.
+
+**Alternativas descartadas**:
+- **Trackear retiros en `observacionesCierre` como texto libre**: ilegible para reportes, no se puede sumar.
+- **Solo Admin puede retirar**: lo mismo que con anular — la empleada no puede esperar al admin para sacar plata por una compra urgente.
+- **Enum `TipoMovimientoCaja`**: para un solo valor (`RETIRO`) por ahora, agregar enum es ingeniería preventiva. String + default + futuro enum cuando aparezca el segundo valor.
+
+---
+
+## 2026-05-22 · Devoluciones: modelo separado de anulación, ≤30 días, sin tracking automático de caja
+
+**Por qué (separado de anulación)**: ver decisión "Cancelar venta: solo turno abierto, post-cierre es devolución". Devolver es un evento posterior, no una mutación retroactiva. Modelo aparte (`Devolucion` + `ItemDevolucion`) lo deja explícito en el dominio: cada devolución es una fila propia, con su propia fecha, usuario, motivo y monto. La venta original queda intacta — solo se le calcula `cantidadDevueltaPorItem` y `estadoDevolucion` por agregación.
+
+**Por qué ≤30 días**: ventana operativa razonable para un bazar. Más allá de 30 días el producto ya cambió de temporada/condición y no se reintegra. Validado server-side en `crearDevolucion`.
+
+**Parcial vs total**: la UI deja elegir cantidad por item con tope = `vendida − ya devuelta` (permite múltiples devoluciones parciales de la misma venta). Botón "Devolver todo" para el caso común. Motivo obligatorio.
+
+**Stock**: se revierte por item en transacción atómica (`MovimientoStock` tipo `DEVOLUCION` + `Stock.increment`). Igual que anular pero con tipo distinto en el historial — el reporte puede distinguir entre stock devuelto por anulación (error de carga) y devolución real (cliente cambió de idea).
+
+**Por qué no se trackea el efecto en caja automáticamente**: una devolución en efectivo significa que el cajero le devolvió plata al cliente. En teoría correspondería un `MovimientoCaja` automático que descuente del esperado. Decisión: **empezar simple** — el cajero hace retiro manual con motivo "devolución" o lo anota en `observacionesCierre`. Razones:
+- No sabemos todavía qué proporción de devoluciones son en efectivo vs transferencia vs débito (donde el efecto en caja es nulo o distinto).
+- Automatizar mal es peor que no automatizar — si una devolución parcial se hace en mitad efectivo / mitad transferencia, el sistema no tiene forma de saberlo sin pedirlo, y eso suma fricción a un flujo poco frecuente.
+- Cuando haya datos de uso real (¿cuántas devoluciones, qué métodos, qué tamaños?) se decide la automatización con evidencia.
+
+**Alternativas descartadas**:
+- **Mutar la venta original** (descontar del total, eliminar items): rompe la traza histórica. La venta como evento es inmutable.
+- **Sin límite de días**: el bazar no quiere reintegros de productos comprados hace 6 meses. La regla operativa real es ~30 días.
+- **`MovimientoCaja` automático en devolución en efectivo**: descrito arriba — diferido hasta tener datos. Si más adelante se decide automatizar, se hace en una sola transacción junto con `Devolucion` + `MovimientoStock`.
+
+---
+
 _(Próximas decisiones van acá abajo, en orden cronológico.)_

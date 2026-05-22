@@ -231,22 +231,27 @@ Neon (São Paulo, sa-east-1), Vercel auto-deploy desde `main`. Login, ventas, st
 
 ---
 
-## Sprint 6.5 — Mejoras post-demo (feedback del hijo en mostrador)
+## Sprint 6.5 — Mejoras post-demo ✅ (2026-05-22)
 
 **Objetivo**: features prioritarias según el uso real del demo en el local.
 
-**Entregables**:
-1. ✅ Fix bug registro de venta bajo concurrencia (2026-05-22) — commits `f3664a3` + `0c3f076`.
-2. Descuento editable: fuera el 10% automático; manual y opcional por % o monto fijo sobre el total; el 10% efectivo/transferencia queda como botón de un toque (no se aplica solo). Campos nuevos `descuentoTipo` + `descuentoValor`. No bloqueante.
-3. Alta rápida de producto en la venta: nombre + precio, sin costo ni variante, marcada "incompleta" para que Admin complete después. Descuenta stock. Disponible para Vendedora, registrada quién.
-4. Cancelar venta: anular solo mientras el turno de esa venta esté ABIERTO. La venta anulada no se borra (marca ANULADA + `anuladaPor` + `motivoAnulacion`), no cuenta en totales, reversión de stock atómica. Vendedora puede anular su propia venta del turno.
-5. Retiro de caja: modelo `MovimientoCaja` (varios retiros por turno); esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede, registrado.
-6. Importador de catálogo (Agustín normaliza la planilla, Code arma el import).
-7. Devoluciones (P2.2) + comprobante por WhatsApp.
+**Entregables completos**:
+1. ✅ **Fix bug registro de venta bajo concurrencia** — commits `f3664a3` + `0c3f076`. Advisory lock transaccional pooler-safe + NNN por `max()` + guard `useRef` contra doble submit.
+2. ✅ **Descuento editable** — commit `33dc571`. Fuera el 10% automático; manual y opcional por % o monto fijo; el 10% efectivo/transferencia queda como botón de un toque. Campos `descuentoTipo` + `descuentoValor` + `descuentoTotal` snapshot.
+3. ✅ **Alta rápida de producto en la venta** — commit `bd87340`. Nombre + precio, `incompleto=true` + `creadoPorId`. Auto-desmarca cuando Admin completa con `costoBase>0` y categoría. Vendedora puede.
+4. ✅ **Cancelar venta** — commit `4e0b0f0`. Anular solo con el turno abierto. `anuladaEn` + `anuladaPorId` + `motivoAnulacion`. Reversión de stock atómica. Excluida de agregaciones. Vendedora anula sus propias del turno.
+5. ✅ **Retiro de caja** — commit `331463b`. Modelo `MovimientoCaja` (varios por turno). Esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede.
+6. ✅ **Importador de catálogo** — commit `c74328a`. Script idempotente para planilla normalizada.
+7. ✅ **Devoluciones (P2.2) + comprobante por WhatsApp** — commit `8bda9bb`. Modelos `Devolucion` + `ItemDevolucion`, ≤30 días, parcial/total, stock revertido. Helper `lib/ventas/comprobante.ts` + botón en `/ventas/exito`. Migración deployada a Neon.
+
+**3 mejoras UX post-sprint (también en `main`)**:
+- ✅ **"Guardar y cargar otro" limpia el form** + feedback verde + foco al nombre — commit `5308d8e`.
+- ✅ **Tachito eliminar en la tabla de productos** (solo Admin, soft delete vía `desactivarProducto`, fila desaparece) — commit `5308d8e`.
+- ✅ **Fixes de links rotos**: "Cerrar turno" en dashboard → `/turno/cerrar`; links a venta desde stock/movimientos usan deep link `/ventas?venta=<id>` — commit `42bf0b3`.
 
 **Permisos (decididos por PO)**: la Vendedora puede aplicar descuentos, hacer retiros y anular sus ventas del turno; todo queda registrado con quién. Sin tope al inicio.
 
-**Duración estimada**: 3-4 sesiones.
+**Decisiones nuevas en `DECISIONES.md`**: descuento manual (reverso del 10%), alta rápida con `incompleto`+`creadoPor`, anular solo turno abierto vs devolución post-cierre, retiros con `MovimientoCaja`, devoluciones separadas de anulación con tracking de caja manual.
 
 ---
 

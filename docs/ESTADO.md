@@ -7,49 +7,35 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 6.5 COMPLETO en local (2026-05-22). Items 4 (anular venta), 5 (retiro de caja) y 6 (importador de catálogo) ya deployados. Item 7 (devoluciones + WhatsApp) commiteado en `main` local, pendiente deploy.**
+**Sprint 6.5 cerrado (2026-05-22). Todos los items completados y deployados. Próximo: Sprint 7 — Dashboard del admin y reportes (P7 + P8).**
 
 ## Tarea en curso
 
-Ninguna. Próximo paso: deployar item 7 a producción (migrate Neon directo + push).
+Ninguna.
 
 ## Último avance
 
-**Sprint 6.5 — Devoluciones + comprobante WhatsApp (2026-05-22)** — commiteado en `main` local, **pendiente deploy** (mismo flujo: migrate Neon directo → push).
-- Schema: nuevos modelos `Devolucion` (venta, usuario, motivo, montoTotal, creadaEn) e `ItemDevolucion` (devolucion, itemVenta, variante, cantidad, precioUnitario, subtotal) + relaciones inversas en `Venta`, `ItemVenta`, `Variante`, `User`. Migración `20260522145032_add_devoluciones` aplicada en dev.
-- Backend: `crearDevolucion` (Zod: motivo min 3, items con cantidad ≥ 1) valida venta no anulada, ≤30 días, cantidad ≤ vendida − ya devuelta (permite múltiples devoluciones parciales). En una transacción: crea `Devolucion` + items, registra `MovimientoStock` tipo `DEVOLUCION` y suma stock atómicamente. Permisos Admin/Vendedor. Nueva query `obtenerDevolucionesVenta`; `obtenerVentaDetalle` y `listarVentas` ahora incluyen devoluciones y `cantidadDevueltaPorItem` / `estadoDevolucion`.
-- UI Detalle (`DetalleVentaModal`): sección "Devoluciones (N)" con historial; botón "Registrar devolución" que abre form con tabla de items (vendido / ya devuelto / a devolver), botón "Devolver todo", input de cantidad por item con max, campo motivo obligatorio, preview de monto, confirmación + guard `useRef`. Botón "WhatsApp" sutil para reenvío.
-- UI Tabla (`TablaVentas`): badge "Dev. parcial" (amber-200) o "Devuelta" (amber-300) junto al código según `estadoDevolucion`.
-- UI Éxito (`/ventas/exito`): botón prominente verde "Enviar comprobante por WhatsApp" que abre `https://wa.me/?text=…` en pestaña nueva. Sin número precargado.
-- Helper `lib/ventas/comprobante.ts`: `generarTextoComprobante(venta)` y `urlWhatsappComprobante(venta)`. Texto plano formateado con emoji 🧾, items, subtotal/descuento/total, método de pago.
-- Decisión "empezar simple": el impacto en caja de devoluciones en efectivo NO se trackea automáticamente. El cajero hace retiro manual o lo anota en observaciones al cierre. Documentado.
-- Verificación: `tsc --noEmit` y `npm run build` verdes. Helper de comprobante probado vía tsx (output coincide con formato pedido).
+**Sprint 6.5 — COMPLETO + deployado (2026-05-22)**. Los 7 items planificados + 3 mejoras UX post-sprint, todo en producción.
 
-**Sprint 6.5 — Retiro de caja (2026-05-22)** — commit `331463b` en `main`, deployado a producción (migrate Neon + push).
-- Schema: nuevo modelo `MovimientoCaja` (`turnoId`, `usuarioId`, `tipo` String default 'RETIRO', `monto` Decimal, `motivo`, `creadoEn`) + relación inversa en `Turno` y `User`. Migración `20260522141541_add_movimiento_caja` aplicada en dev (datos existentes intactos).
-- Backend: `registrarRetiroCaja` (Zod: monto > 0, motivo min 3) usa el turno abierto del usuario actual; permisos Admin/Vendedor. `obtenerRetirosTurno` lista retiros con usuario + monto. `calcularRetirosEnTurno` suma RETIROS del turno.
-- Fórmula del esperado: `efectivoInicial + ventas efectivo (excl. anuladas) − retiros`. Modificados `cerrarTurno` (snapshot al cierre) y `obtenerResumenTurnoAbierto`.
-- UI Dashboard: botón "Retirar de caja" + modal (monto + motivo, useRef guard); si hay retiros, card con la lista (hora, motivo, monto, quién) y desglose "Inicial + Ventas efectivo − Retiros = Esperado".
-- UI Cierre: línea "Retiros durante el turno (N): −$Z" + listado breve por motivo, y caja explicativa con la fórmula del esperado visible.
-- Verificación: `tsc --noEmit` y `npm run build` verdes. Turnos sin retiros conservan el comportamiento previo.
+7 items del sprint:
+1. ✅ **Fix bug registro de venta bajo concurrencia** — commits `f3664a3` + `0c3f076`. Advisory lock transaccional pooler-safe + NNN por `max()` + guard `useRef` contra doble submit + mensajes genéricos (no filtra Prisma a la UI).
+2. ✅ **Descuento editable** — commit `33dc571`. Reverso del 10% automático: descuento manual y opcional (% o monto fijo), preset 10% como botón. Campos `descuentoTipo`, `descuentoValor`, `descuentoTotal` snapshot.
+3. ✅ **Alta rápida de producto en la venta** — commit `bd87340`. Solo nombre + precio desde la pantalla de venta; `incompleto=true` + `creadoPorId`. Admin completa después; al guardar con costoBase>0 y categoría se auto-desmarca. Stock inicial=1.
+4. ✅ **Anular venta del turno abierto** — commit `4e0b0f0`. `anuladaEn` + `anuladaPorId` + `motivoAnulacion`; reversión atómica de stock. Excluida de agregaciones. Badge + filtro en `/ventas`. Guard `useRef`.
+5. ✅ **Retiro de caja durante el turno** — commit `331463b`. Modelo `MovimientoCaja` (varios por turno). Esperado = inicial + ventas efectivo − retiros. UI en dashboard + cierre. Vendedora puede.
+6. ✅ **Importador de catálogo** — commit `c74328a`. Script idempotente para planilla normalizada.
+7. ✅ **Devoluciones + comprobante por WhatsApp** — commit `8bda9bb`. Modelos `Devolucion` + `ItemDevolucion`, ≤30 días, parcial/total con tope vs ya devuelto, stock revertido. Badges en historial. Botón WhatsApp prominente en éxito + sutil en detalle. Migración deployada a Neon.
 
-**Sprint 6.5 — Anular venta (2026-05-22)** — commit `4e0b0f0` en `main`, deployado a producción.
-- Schema: `Venta.anuladaEn`, `anuladaPorId`, `motivoAnulacion`; nuevo enum `TipoMovimiento.ANULACION_VENTA`. Migración `20260522135555_add_anulacion_venta` aplicada en dev (20 ventas existentes intactas, ninguna anulada).
-- Backend: `anularVenta` con validaciones (turno abierto, no doble anulación, permisos Admin/dueña). Reversión de stock atómica vía `MovimientoStock` + `Stock.increment` en transacción. Motivo obligatorio (min 3 chars).
-- Agregaciones que excluyen anuladas: `calcularEfectivoVendidoEnTurno`, `obtenerResumenTurnoAbierto`, `listarTurnosDelMes`, snapshot de cierre, página `/turno/cerrar`.
-- UI: badge "ANULADA" + tachado en `/ventas`, filtro "Ocultar anuladas", info de anulación + botón "Anular venta" con motivo y confirmación en el detalle, link sutil en `/ventas/exito` (deep link a `/ventas?venta=<id>`).
-- Guard de doble submit (`useRef`) en el botón de anular.
-- Verificación: `tsc --noEmit` y `npm run build` verdes.
-
-**Sprint 6.5 — Fix bug registro de venta bajo concurrencia (2026-05-22)** — commits `f3664a3` + `0c3f076` en `main`, deployados a producción.
-- Bug de mostrador: "primera venta OK, segunda tira error". Causa: colisión de `codigoCorto` (`count+1` sin sincronización) bajo concurrencia (doble tap).
-- Capa 1 (`f3664a3`): advisory lock transaccional pooler-safe + NNN por `max()`.
-- Capa 2 (`0c3f076`): guard síncrono `useRef` contra doble submit + mensaje de error genérico (no filtra Prisma crudo a la UI).
-- Sin migración. Verificado: 8 ventas en paralelo OK, doble click UI = 1 venta, smoke 16/16, build/tsc verdes.
+3 mejoras UX post-sprint (2026-05-22):
+- ✅ **"Guardar y cargar otro"** — commit `5308d8e`. Resetea form completo, muestra banner verde de éxito (2.5s), devuelve foco al nombre.
+- ✅ **Tachito eliminar en tabla de productos** — commit `5308d8e`. Icono al lado del lápiz (solo Admin), confirm dialog con `useRef`, soft delete vía `desactivarProducto`, listado filtra `activo:true` para que la fila desaparezca.
+- ✅ **Fixes de links rotos** — commit `42bf0b3`. "Cerrar turno" en dashboard apuntaba a `/turno/abrir` → `/turno/cerrar`. Links a `/ventas/${ventaId}` desde stock/movimientos (404) → `/ventas?venta=${ventaId}` (deep link al modal).
 
 ---
 
 ## Historial de sprints anteriores
+
+**Sprint 6.5 — Mejoras post-demo completado (2026-05-22)** — `main`, deployado a producción. 7 items (fix concurrencia, descuento manual, alta rápida, anular venta, retiro de caja, importador, devoluciones+WhatsApp) + 3 mejoras UX (limpiar form, tachito eliminar, links rotos). Decisiones en `DECISIONES.md`.
 
 **Sprint 6.2 — Historial de ventas completado (2026-05-09)** — commit `e2e9a00` en `main`. Pantalla `/ventas` con filtros, paginación, modal de detalle. Vendedor ve solo sus ventas.
 
@@ -71,16 +57,14 @@ Ninguna. Próximo paso: deployar item 7 a producción (migrate Neon directo + pu
 
 ## Próxima tarea
 
-**Sprint 6.5 — Mejoras post-demo** (feedback del hijo usándolo en mostrador). Orden acordado:
-1. ✅ Fix bug registro de venta bajo concurrencia (2026-05-22).
-2. ✅ Descuento editable (commit `33dc571`).
-3. ✅ Alta rápida de producto en la venta (commit `bd87340`).
-4. ✅ Cancelar venta (deployado 2026-05-22): anular solo mientras el turno esté ABIERTO. Venta marcada ANULADA + `anuladaPor` + `motivoAnulacion`, no cuenta en totales, reversión de stock atómica, Vendedora puede anular sus propias del turno.
-5. ✅ Retiro de caja (deployado 2026-05-22): modelo `MovimientoCaja` (varios retiros por turno); esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede, registrado.
-6. ✅ Importador de catálogo (commit `c74328a`).
-7. ✅ Devoluciones (P2.2) + comprobante por WhatsApp (2026-05-22): modelos `Devolucion` + `ItemDevolucion`, ≤30 días, parcial/total con tope vs ya devuelto, stock revertido en transacción, badges en historial, botón WhatsApp prominente en éxito + sutil en detalle. **Local, pendiente deploy**.
+**Sprint 7 — Dashboard del admin y reportes (P7 + P8)**.
 
-**Permisos (decididos por PO)**: la Vendedora puede aplicar descuentos, hacer retiros y anular sus ventas del turno; todo queda registrado con quién. Sin tope al inicio.
+Entregables (Plan Base):
+- **P7 Dashboard del admin**: caja del día (suma de ventas + cierres con diferencias), productos más vendidos del mes, ventas por método de pago, alertas básicas (turnos abiertos sin cerrar, stock negativo, ventas con devolución pendiente).
+- **P8 Reportes**: ventas totales por día/semana/mes, productos más vendidos, ventas por método de pago, ventas por vendedor, horas trabajadas por vendedor (suma de duración de turnos cerrados).
+- Exportación a CSV.
+
+Diferido al upgrade a Intermedio: gráficos interactivos avanzados, comparativa entre sucursales (no aplica mono-sucursal), exportación a Excel con formato, alertas automáticas de stock bajo.
 
 Ver `ROADMAP.md` para el plan completo.
 
@@ -150,7 +134,7 @@ Ninguno.
 
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
-- **Último commit en main**: por crear ahora (devoluciones + WhatsApp). Anterior deployado: `c74328a` (importador de catálogo).
+- **Último commit en main**: `42bf0b3` (fixes de links rotos: Cerrar turno + deep link a venta desde stock).
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.
