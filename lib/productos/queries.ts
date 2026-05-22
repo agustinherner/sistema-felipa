@@ -35,7 +35,7 @@ export async function getProductosListado(
   const { q, categoriaId, sucursalId, incompleto, page, pageSize } = opts;
 
   const qTrim = q?.trim();
-  const where: Prisma.ProductoWhereInput = {};
+  const where: Prisma.ProductoWhereInput = { activo: true };
 
   if (qTrim) {
     where.OR = [

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus } from 'lucide-react';
+import { CheckCircle2, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -111,15 +111,43 @@ export function ProductoForm({
   const [submitMode, setSubmitMode] = useState<'guardar' | 'guardar-y-otro'>(
     'guardar',
   );
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false);
 
   const nombreRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     nombreRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    };
+  }, []);
+
+  function mostrarFeedback(mensaje: string) {
+    setFeedback(mensaje);
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => setFeedback(null), 2500);
+  }
+
+  function resetForm() {
+    setNombre('');
+    setDescripcion('');
+    setCategoriaId('');
+    setPrecioBase('');
+    setCostoBase('');
+    setTieneVariantes(false);
+    setVariantes([nuevaVarianteVacia()]);
+    setStockInicialUnico('');
+    setErroresGenerales([]);
+    setErroresVariantes({});
+    setErrorNombre(null);
+  }
 
   const esAlta = modo === 'alta';
 
@@ -317,10 +345,10 @@ export function ProductoForm({
           router.push('/productos');
           router.refresh();
         } else {
-          const params = new URLSearchParams();
-          if (categoriaId) params.set('categoriaId', categoriaId);
-          const qs = params.toString();
-          router.push(qs ? `/productos/nuevo?${qs}` : '/productos/nuevo');
+          const nombreGuardado = payload.nombre;
+          resetForm();
+          mostrarFeedback(`Producto "${nombreGuardado}" guardado ✓`);
+          nombreRef.current?.focus();
           router.refresh();
         }
       } else {
@@ -355,6 +383,17 @@ export function ProductoForm({
       className="space-y-6"
       noValidate
     >
+      {feedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          <span>{feedback}</span>
+        </div>
+      )}
+
       {erroresGenerales.length > 0 && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3">
           <p className="text-sm font-medium text-destructive">

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ProductoListadoItem } from '@/lib/productos/queries';
 import type { ProductoPermissions } from '@/lib/productos/permissions';
+import { BotonEliminarFila } from './BotonEliminarFila';
 
 export function ProductosTable({
   productos,
@@ -35,7 +36,7 @@ export function ProductosTable({
             )}
             <TableHead className="text-right">Stock</TableHead>
             {permissions.editar && (
-              <TableHead className="w-16 text-right">Acciones</TableHead>
+              <TableHead className="w-24 text-right">Acciones</TableHead>
             )}
           </TableRow>
         </TableHeader>
@@ -105,16 +106,24 @@ export function ProductosTable({
               </TableCell>
               {permissions.editar && (
                 <TableCell className="text-right">
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Editar ${p.nombre}`}
-                  >
-                    <Link href={`/productos/${p.id}/editar`}>
-                      <Pencil className="h-4 w-4" />
-                    </Link>
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Editar ${p.nombre}`}
+                    >
+                      <Link href={`/productos/${p.id}/editar`}>
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    {permissions.eliminar && p.activo && (
+                      <BotonEliminarFila
+                        productoId={p.id}
+                        productoNombre={p.nombre}
+                      />
+                    )}
+                  </div>
                 </TableCell>
               )}
             </TableRow>
