@@ -7,15 +7,15 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 6.5 en curso (post-demo). Items 4 (anular venta) y 5 (retiro de caja) implementados local 2026-05-22; pendientes de deploy.**
+**Sprint 6.5 en curso (post-demo). Items 4 (anular venta) y 5 (retiro de caja) deployados a producción 2026-05-22.**
 
 ## Tarea en curso
 
-Ninguna. Próximo paso: deploy de anular venta + retiro de caja (migrate Neon directo → push).
+Ninguna. Próximo paso: item 6 (importador de catálogo) o item 7 (devoluciones + WhatsApp).
 
 ## Último avance
 
-**Sprint 6.5 — Retiro de caja (2026-05-22)** — commit local en `main`, sin deploy aún.
+**Sprint 6.5 — Retiro de caja (2026-05-22)** — commit `331463b` en `main`, deployado a producción (migrate Neon + push).
 - Schema: nuevo modelo `MovimientoCaja` (`turnoId`, `usuarioId`, `tipo` String default 'RETIRO', `monto` Decimal, `motivo`, `creadoEn`) + relación inversa en `Turno` y `User`. Migración `20260522141541_add_movimiento_caja` aplicada en dev (datos existentes intactos).
 - Backend: `registrarRetiroCaja` (Zod: monto > 0, motivo min 3) usa el turno abierto del usuario actual; permisos Admin/Vendedor. `obtenerRetirosTurno` lista retiros con usuario + monto. `calcularRetirosEnTurno` suma RETIROS del turno.
 - Fórmula del esperado: `efectivoInicial + ventas efectivo (excl. anuladas) − retiros`. Modificados `cerrarTurno` (snapshot al cierre) y `obtenerResumenTurnoAbierto`.
@@ -23,7 +23,7 @@ Ninguna. Próximo paso: deploy de anular venta + retiro de caja (migrate Neon di
 - UI Cierre: línea "Retiros durante el turno (N): −$Z" + listado breve por motivo, y caja explicativa con la fórmula del esperado visible.
 - Verificación: `tsc --noEmit` y `npm run build` verdes. Turnos sin retiros conservan el comportamiento previo.
 
-**Sprint 6.5 — Anular venta (2026-05-22)** — commit local en `main`, sin deploy aún.
+**Sprint 6.5 — Anular venta (2026-05-22)** — commit `4e0b0f0` en `main`, deployado a producción.
 - Schema: `Venta.anuladaEn`, `anuladaPorId`, `motivoAnulacion`; nuevo enum `TipoMovimiento.ANULACION_VENTA`. Migración `20260522135555_add_anulacion_venta` aplicada en dev (20 ventas existentes intactas, ninguna anulada).
 - Backend: `anularVenta` con validaciones (turno abierto, no doble anulación, permisos Admin/dueña). Reversión de stock atómica vía `MovimientoStock` + `Stock.increment` en transacción. Motivo obligatorio (min 3 chars).
 - Agregaciones que excluyen anuladas: `calcularEfectivoVendidoEnTurno`, `obtenerResumenTurnoAbierto`, `listarTurnosDelMes`, snapshot de cierre, página `/turno/cerrar`.
@@ -65,8 +65,8 @@ Ninguna. Próximo paso: deploy de anular venta + retiro de caja (migrate Neon di
 1. ✅ Fix bug registro de venta bajo concurrencia (2026-05-22).
 2. ✅ Descuento editable (commit `33dc571`).
 3. ✅ Alta rápida de producto en la venta (commit `bd87340`).
-4. ✅ Cancelar venta (local 2026-05-22, pendiente deploy): anular solo mientras el turno esté ABIERTO. Venta marcada ANULADA + `anuladaPor` + `motivoAnulacion`, no cuenta en totales, reversión de stock atómica, Vendedora puede anular sus propias del turno.
-5. ✅ Retiro de caja (local 2026-05-22, pendiente deploy): modelo `MovimientoCaja` (varios retiros por turno); esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede, registrado.
+4. ✅ Cancelar venta (deployado 2026-05-22): anular solo mientras el turno esté ABIERTO. Venta marcada ANULADA + `anuladaPor` + `motivoAnulacion`, no cuenta en totales, reversión de stock atómica, Vendedora puede anular sus propias del turno.
+5. ✅ Retiro de caja (deployado 2026-05-22): modelo `MovimientoCaja` (varios retiros por turno); esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede, registrado.
 6. Importador de catálogo (Agustín normaliza la planilla, Code arma el import).
 7. Devoluciones (P2.2) + comprobante por WhatsApp (lo que quedaba del 6.5 original).
 
@@ -140,7 +140,7 @@ Ninguno.
 
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
-- **Último commit en main**: retiro de caja (local, sin push). Anterior local: anular venta. Anterior pusheado: `bd87340` (alta rápida).
+- **Último commit en main**: `331463b` (retiro de caja, deployado).
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.
