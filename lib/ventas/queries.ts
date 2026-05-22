@@ -11,6 +11,8 @@ export type MetodoPagoItem = {
   monto: number;
 };
 
+export type DescuentoTipo = 'PORCENTAJE' | 'MONTO';
+
 export type VentaListItem = {
   id: string;
   codigoCorto: string;
@@ -20,6 +22,8 @@ export type VentaListItem = {
   metodosPago: MetodoPagoItem[];
   subtotal: number;
   descuentoTotal: number;
+  descuentoTipo: DescuentoTipo | null;
+  descuentoValor: number | null;
   total: number;
   aplicaDescuento: boolean;
 };
@@ -37,6 +41,11 @@ export type ListarVentasResult = {
   ventas: VentaListItem[];
   hayMas: boolean;
 };
+
+function normalizarDescuentoTipo(value: string | null): DescuentoTipo | null {
+  if (value === 'PORCENTAJE' || value === 'MONTO') return value;
+  return null;
+}
 
 function parseMetodosPago(value: unknown): MetodoPagoItem[] {
   if (!Array.isArray(value)) return [];
@@ -101,6 +110,8 @@ export async function listarVentas(
       usuarioId: true,
       subtotal: true,
       descuentoTotal: true,
+      descuentoTipo: true,
+      descuentoValor: true,
       total: true,
       aplicaDescuento: true,
       metodosPago: true,
@@ -120,6 +131,8 @@ export async function listarVentas(
     metodosPago: parseMetodosPago(v.metodosPago),
     subtotal: Number(v.subtotal),
     descuentoTotal: Number(v.descuentoTotal),
+    descuentoTipo: normalizarDescuentoTipo(v.descuentoTipo),
+    descuentoValor: v.descuentoValor !== null ? Number(v.descuentoValor) : null,
     total: Number(v.total),
     aplicaDescuento: v.aplicaDescuento,
   }));
@@ -146,6 +159,8 @@ export type VentaDetalle = {
   usuarioNombre: string;
   subtotal: number;
   descuentoTotal: number;
+  descuentoTipo: DescuentoTipo | null;
+  descuentoValor: number | null;
   total: number;
   aplicaDescuento: boolean;
   metodosPago: MetodoPagoItem[];
@@ -170,6 +185,8 @@ export async function obtenerVentaDetalle(
       usuarioId: true,
       subtotal: true,
       descuentoTotal: true,
+      descuentoTipo: true,
+      descuentoValor: true,
       total: true,
       aplicaDescuento: true,
       metodosPago: true,
@@ -204,6 +221,8 @@ export async function obtenerVentaDetalle(
     usuarioNombre: v.usuario.nombre,
     subtotal: Number(v.subtotal),
     descuentoTotal: Number(v.descuentoTotal),
+    descuentoTipo: normalizarDescuentoTipo(v.descuentoTipo),
+    descuentoValor: v.descuentoValor !== null ? Number(v.descuentoValor) : null,
     total: Number(v.total),
     aplicaDescuento: v.aplicaDescuento,
     metodosPago: parseMetodosPago(v.metodosPago),

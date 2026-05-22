@@ -6,7 +6,6 @@ import { generarCodigoCortoVenta } from './codigoCorto';
 import { fail, type ActionResult, type CrearVentaContexto } from './types';
 
 const MetodoPagoEnum = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'DEBITO', 'CREDITO']);
-type MetodoPago = z.infer<typeof MetodoPagoEnum>;
 
 const ItemSchema = z.object({
   varianteId: z.string().min(1),
@@ -18,10 +17,19 @@ const MetodoPagoSchema = z.object({
   monto: z.number().positive('El monto debe ser mayor a 0'),
 });
 
+const DescuentoTipoEnum = z.enum(['PORCENTAJE', 'MONTO']);
+export type DescuentoTipo = z.infer<typeof DescuentoTipoEnum>;
+
+const DescuentoSchema = z.object({
+  tipo: DescuentoTipoEnum,
+  valor: z.number().positive('El valor del descuento debe ser mayor a 0'),
+});
+
 export const CrearVentaSchema = z
   .object({
     items: z.array(ItemSchema).min(1, 'La venta tiene que tener al menos un ítem'),
     metodosPago: z.array(MetodoPagoSchema).min(1, 'Tiene que haber al menos un método de pago'),
+    descuento: DescuentoSchema.nullable().optional(),
   })
   .refine(
     (data) =>
@@ -34,14 +42,8 @@ export const CrearVentaSchema = z
   );
 
 const TOLERANCIA_FLOAT = 0.01;
-const PORCENTAJE_DESCUENTO = new Prisma.Decimal('0.10');
+const CIEN = new Prisma.Decimal('100');
 const MAX_RETRIES_CODIGO = 3;
-
-function aplicaDescuentoMetodos(metodos: { metodo: MetodoPago }[]): boolean {
-  return metodos.every(
-    (m) => m.metodo === 'EFECTIVO' || m.metodo === 'TRANSFERENCIA',
-  );
-}
 
 function redondearADosDecimales(d: Prisma.Decimal): Prisma.Decimal {
   return d.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
@@ -62,7 +64,7 @@ export async function crearVentaCore(
   if (!parsed.success) {
     return fail(parsed.error.issues.map((i) => i.message));
   }
-  const { items, metodosPago } = parsed.data;
+  const { items, metodosPago, descuento: descuentoInput } = parsed.data;
 
   const variantes = await prisma.variante.findMany({
     where: { id: { in: items.map((i) => i.varianteId) } },
@@ -105,11 +107,30 @@ export async function crearVentaCore(
   });
   subtotal = redondearADosDecimales(subtotal);
 
-  const aplicaDescuento = aplicaDescuentoMetodos(metodosPago);
-  const descuento = aplicaDescuento
-    ? redondearADosDecimales(subtotal.mul(PORCENTAJE_DESCUENTO))
-    : new Prisma.Decimal(0);
-  const total = subtotal.sub(descuento);
+  // Descuento manual: viene del cliente, ya no se infiere por método de pago.
+  let descuentoTipo: DescuentoTipo | null = null;
+  let descuentoValor: Prisma.Decimal | null = null;
+  let descuentoTotal = new Prisma.Decimal(0);
+
+  if (descuentoInput) {
+    const valor = new Prisma.Decimal(descuentoInput.valor);
+    if (descuentoInput.tipo === 'PORCENTAJE') {
+      if (valor.lte(0) || valor.gt(100)) {
+        return fail(['El descuento por porcentaje debe ser > 0 y <= 100.']);
+      }
+      descuentoTotal = redondearADosDecimales(subtotal.mul(valor).div(CIEN));
+    } else {
+      if (valor.lte(0) || valor.gt(subtotal)) {
+        return fail(['El descuento por monto debe ser > 0 y no puede superar el subtotal.']);
+      }
+      descuentoTotal = redondearADosDecimales(valor);
+    }
+    descuentoTipo = descuentoInput.tipo;
+    descuentoValor = redondearADosDecimales(valor);
+  }
+
+  const aplicaDescuento = descuentoTipo !== null;
+  const total = subtotal.sub(descuentoTotal);
 
   const sumaMetodos = metodosPago.reduce((acc, m) => acc + m.monto, 0);
   if (Math.abs(sumaMetodos - total.toNumber()) >= TOLERANCIA_FLOAT) {
@@ -140,7 +161,9 @@ export async function crearVentaCore(
             usuarioId: userId,
             turnoId,
             subtotal,
-            descuentoTotal: descuento,
+            descuentoTotal,
+            descuentoTipo,
+            descuentoValor,
             total,
             aplicaDescuento,
             metodosPago: metodosPago.map((m) => ({

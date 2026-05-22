@@ -48,6 +48,20 @@ function formatMoneda(n: number): string {
   return `$${Math.round(n).toLocaleString('es-AR')}`;
 }
 
+function etiquetaDescuento(v: VentaListItem): string {
+  if (v.descuentoTipo === 'PORCENTAJE' && v.descuentoValor !== null) {
+    // El valor ya viene en %, con hasta 2 decimales. Mostrar enteros si es entero.
+    const n = v.descuentoValor;
+    const txt = Number.isInteger(n) ? n.toString() : n.toFixed(2);
+    return `${txt}% dto`;
+  }
+  if (v.descuentoTipo === 'MONTO' && v.descuentoValor !== null) {
+    return `${formatMoneda(v.descuentoValor)} dto`;
+  }
+  // Legacy: aplicaDescuento true pero descuentoTipo null (ventas pre-cambio).
+  return 'dto';
+}
+
 function formatFechaHora(iso: string): { fecha: string; hora: string } {
   const d = new Date(iso);
   return { fecha: FECHA_FMT.format(d), hora: HORA_FMT.format(d) };
@@ -164,7 +178,7 @@ export function TablaVentas({ ventas, hayMas, page, permissions }: Props) {
                             {formatMoneda(v.total)}
                           </span>
                           <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                            10% dto
+                            {etiquetaDescuento(v)}
                           </span>
                         </>
                       ) : (

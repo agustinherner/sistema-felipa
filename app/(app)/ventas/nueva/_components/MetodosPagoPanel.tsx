@@ -5,12 +5,20 @@ import { Loader2, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import type { MetodoPago, MetodoPagoEntry } from './VentaNuevaForm';
+import type {
+  DescuentoState,
+  DescuentoTipo,
+  MetodoPago,
+  MetodoPagoEntry,
+} from './VentaNuevaForm';
 
 type Props = {
   metodosPago: MetodoPagoEntry[];
   subtotal: number;
-  descuento: number;
+  descuento: DescuentoState | null;
+  descuentoMonto: number;
+  descuentoError: string | null;
+  descuentoActivo: boolean;
   total: number;
   sumaPagos: number;
   diferenciaRestante: number;
@@ -20,6 +28,10 @@ type Props = {
   onCambiarMetodo: (id: string, metodo: MetodoPago | '') => void;
   onCambiarMonto: (id: string, monto: string) => void;
   onEliminarMetodo: (id: string) => void;
+  onCambiarDescuentoTipo: (tipo: DescuentoTipo) => void;
+  onCambiarDescuentoValor: (valor: string) => void;
+  onAplicarPresetEfTransf: () => void;
+  onQuitarDescuento: () => void;
   onCobrar: () => void;
   cobrando: boolean;
 };
@@ -41,6 +53,9 @@ export function MetodosPagoPanel({
   metodosPago,
   subtotal,
   descuento,
+  descuentoMonto,
+  descuentoError,
+  descuentoActivo,
   total,
   diferenciaRestante,
   cobroValido,
@@ -49,10 +64,13 @@ export function MetodosPagoPanel({
   onCambiarMetodo,
   onCambiarMonto,
   onEliminarMetodo,
+  onCambiarDescuentoTipo,
+  onCambiarDescuentoValor,
+  onAplicarPresetEfTransf,
+  onQuitarDescuento,
   onCobrar,
   cobrando,
 }: Props) {
-  const aplicaDescuento = descuento > 0;
   const metodosUsados = new Set(
     metodosPago.map((m) => m.metodo).filter((m) => m !== ''),
   );
@@ -66,16 +84,6 @@ export function MetodosPagoPanel({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'F2') return;
-      const ae = document.activeElement;
-      // Si el usuario está editando un input/select, no interceptar.
-      if (
-        ae instanceof HTMLInputElement ||
-        ae instanceof HTMLSelectElement ||
-        ae instanceof HTMLTextAreaElement
-      ) {
-        // Permitir F2 igual si el input es un campo de monto y todo está válido.
-        // Trade-off: el cajero puede querer disparar F2 desde el input de monto.
-      }
       if (cobroValido && !cobrando) {
         e.preventDefault();
         onCobrar();
@@ -84,6 +92,10 @@ export function MetodosPagoPanel({
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [cobroValido, cobrando, onCobrar]);
+
+  const tipoSeleccionado = descuento?.tipo ?? 'PORCENTAJE';
+  const valorDescuento = descuento?.valor ?? '';
+  const sufijo = tipoSeleccionado === 'PORCENTAJE' ? '%' : '$';
 
   return (
     <div className="rounded-lg border bg-card p-5 shadow-sm lg:sticky lg:top-6">
@@ -96,35 +108,19 @@ export function MetodosPagoPanel({
             <span className="text-muted-foreground">Subtotal</span>
             <span className="tabular-nums">{formatoPrecio(subtotal)}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span
-              className={
-                'inline-flex items-center gap-1.5 ' +
-                (aplicaDescuento
-                  ? 'text-emerald-700'
-                  : 'text-muted-foreground')
-              }
-            >
-              <span
-                className={
-                  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ' +
-                  (aplicaDescuento
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-muted text-muted-foreground')
-                }
-              >
-                Descuento 10% {aplicaDescuento ? '✓' : ''}
+          {descuentoActivo && (
+            <div className="flex items-center justify-between text-emerald-700">
+              <span>
+                Descuento{' '}
+                {descuento?.tipo === 'PORCENTAJE'
+                  ? `${descuento.valor}%`
+                  : 'monto fijo'}
               </span>
-            </span>
-            <span
-              className={
-                'tabular-nums ' +
-                (aplicaDescuento ? 'text-emerald-700' : 'text-muted-foreground')
-              }
-            >
-              {aplicaDescuento ? `-${formatoPrecio(descuento)}` : '$0'}
-            </span>
-          </div>
+              <span className="tabular-nums">
+                -{formatoPrecio(descuentoMonto)}
+              </span>
+            </div>
+          )}
         </div>
         <div className="border-t pt-3">
           <div className="flex items-baseline justify-between">
@@ -136,6 +132,80 @@ export function MetodosPagoPanel({
             </span>
           </div>
         </div>
+      </div>
+
+      {/* ---- Descuento ---- */}
+      <div className="mt-5 space-y-2 rounded-md border bg-muted/20 p-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Descuento (opcional)
+          </h3>
+          {descuento !== null && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onQuitarDescuento}
+              disabled={cobrando}
+              className="h-7 px-2 text-xs"
+            >
+              Quitar
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAplicarPresetEfTransf}
+            disabled={cobrando || carritoVacio}
+            className="h-8 text-xs"
+          >
+            10% Ef/Transf
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select
+            value={tipoSeleccionado}
+            onChange={(e) =>
+              onCambiarDescuentoTipo(e.target.value as DescuentoTipo)
+            }
+            disabled={cobrando}
+            className="w-24"
+            aria-label="Tipo de descuento"
+          >
+            <option value="PORCENTAJE">%</option>
+            <option value="MONTO">$</option>
+          </Select>
+          <div className="relative flex-1">
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              inputMode="decimal"
+              placeholder={
+                tipoSeleccionado === 'PORCENTAJE' ? '0' : '$0'
+              }
+              value={valorDescuento}
+              onChange={(e) => onCambiarDescuentoValor(e.target.value)}
+              onFocus={() => {
+                if (descuento === null) onCambiarDescuentoTipo(tipoSeleccionado);
+              }}
+              disabled={cobrando || carritoVacio}
+              className="pr-7"
+              aria-label="Valor del descuento"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              {sufijo}
+            </span>
+          </div>
+        </div>
+        {descuentoError && (
+          <p className="text-xs text-red-600" role="alert">
+            {descuentoError}
+          </p>
+        )}
       </div>
 
       <div className="mt-6 space-y-3">

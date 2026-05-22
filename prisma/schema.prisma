@@ -183,6 +183,8 @@ model Venta {
   usuarioId       String
   subtotal        Decimal  @db.Decimal(12, 2)
   descuentoTotal  Decimal  @default(0) @db.Decimal(12, 2)
+  descuentoTipo   String?
+  descuentoValor  Decimal? @db.Decimal(12, 2)
   total           Decimal  @db.Decimal(12, 2)
   aplicaDescuento Boolean  @default(false)
   metodosPago     Json

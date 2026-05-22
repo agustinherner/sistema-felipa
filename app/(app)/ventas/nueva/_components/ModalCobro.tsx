@@ -9,14 +9,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { ItemCarrito, MetodoPagoEntry } from './VentaNuevaForm';
+import type {
+  DescuentoState,
+  ItemCarrito,
+  MetodoPagoEntry,
+} from './VentaNuevaForm';
 
 type Props = {
   abierto: boolean;
   items: ItemCarrito[];
   metodosPago: MetodoPagoEntry[];
   subtotal: number;
-  descuento: number;
+  descuento: DescuentoState | null;
+  descuentoMonto: number;
   total: number;
   cobrando: boolean;
   onConfirmar: () => void;
@@ -40,12 +45,13 @@ export function ModalCobro({
   metodosPago,
   subtotal,
   descuento,
+  descuentoMonto,
   total,
   cobrando,
   onConfirmar,
   onCancelar,
 }: Props) {
-  const aplicaDescuento = descuento > 0;
+  const aplicaDescuento = descuento !== null && descuentoMonto > 0;
   const warningsStock = items.filter(
     (it) => it.stockActual - it.cantidad < 0,
   );
@@ -54,6 +60,13 @@ export function ModalCobro({
     if (cobrando) return; // bloqueado durante el request
     if (!open) onCancelar();
   }
+
+  const labelDescuento =
+    descuento === null
+      ? ''
+      : descuento.tipo === 'PORCENTAJE'
+        ? `Descuento ${descuento.valor}%`
+        : `Descuento ${formatoPrecio(parseFloat(descuento.valor) || 0)}`;
 
   return (
     <Dialog open={abierto} onOpenChange={handleOpenChange}>
@@ -123,9 +136,9 @@ export function ModalCobro({
             </div>
             {aplicaDescuento && (
               <div className="flex justify-between text-emerald-700">
-                <span>Descuento 10%</span>
+                <span>{labelDescuento}</span>
                 <span className="tabular-nums">
-                  -{formatoPrecio(descuento)}
+                  -{formatoPrecio(descuentoMonto)}
                 </span>
               </div>
             )}

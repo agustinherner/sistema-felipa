@@ -25,10 +25,21 @@ export type MetodoPagoEntry = {
   monto: string;
 };
 
+export type DescuentoTipo = 'PORCENTAJE' | 'MONTO';
+
+export type DescuentoState = {
+  tipo: DescuentoTipo;
+  valor: string;
+};
+
 const MAX_METODOS = 4;
 
 function nuevoEntry(): MetodoPagoEntry {
   return { id: crypto.randomUUID(), metodo: '', monto: '' };
+}
+
+function redondear2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 export function VentaNuevaForm() {
@@ -38,6 +49,7 @@ export function VentaNuevaForm() {
   const [metodosPago, setMetodosPago] = useState<MetodoPagoEntry[]>(() => [
     nuevoEntry(),
   ]);
+  const [descuento, setDescuento] = useState<DescuentoState | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [cobrando, setCobrando] = useState(false);
   const [errorCobro, setErrorCobro] = useState<string[] | null>(null);
@@ -130,6 +142,25 @@ export function VentaNuevaForm() {
     });
   }, []);
 
+  // ---- Descuento ----
+  const onCambiarDescuentoTipo = useCallback((tipo: DescuentoTipo) => {
+    setDescuento((prev) =>
+      prev ? { ...prev, tipo } : { tipo, valor: '' },
+    );
+  }, []);
+
+  const onCambiarDescuentoValor = useCallback((valor: string) => {
+    setDescuento((prev) => (prev ? { ...prev, valor } : prev));
+  }, []);
+
+  const onAplicarPresetEfTransf = useCallback(() => {
+    setDescuento({ tipo: 'PORCENTAJE', valor: '10' });
+  }, []);
+
+  const onQuitarDescuento = useCallback(() => {
+    setDescuento(null);
+  }, []);
+
   // ---- Cálculos derivados ----
   const subtotal = useMemo(
     () =>
@@ -137,19 +168,37 @@ export function VentaNuevaForm() {
     [items],
   );
 
-  const aplicaDescuento = useMemo(() => {
-    if (metodosPago.length === 0) return false;
-    return metodosPago.every(
-      (m) => m.metodo === 'EFECTIVO' || m.metodo === 'TRANSFERENCIA',
-    );
-  }, [metodosPago]);
+  // Devuelve { monto, error }. Si el descuento es null o el valor está vacío,
+  // monto = 0 y error = null (estado válido = sin descuento).
+  const descuentoCalc = useMemo<{ monto: number; error: string | null }>(() => {
+    if (!descuento) return { monto: 0, error: null };
+    const trimmed = descuento.valor.trim();
+    if (trimmed === '') return { monto: 0, error: null };
+    const n = parseFloat(trimmed);
+    if (!Number.isFinite(n) || n <= 0) {
+      return { monto: 0, error: 'El valor del descuento debe ser mayor a 0.' };
+    }
+    if (descuento.tipo === 'PORCENTAJE') {
+      if (n > 100) {
+        return { monto: 0, error: 'El porcentaje no puede ser mayor a 100.' };
+      }
+      return { monto: redondear2(subtotal * (n / 100)), error: null };
+    }
+    // MONTO
+    if (n > subtotal + 0.001) {
+      return { monto: 0, error: 'El descuento no puede superar el subtotal.' };
+    }
+    return { monto: redondear2(n), error: null };
+  }, [descuento, subtotal]);
 
-  const descuento = useMemo(
-    () => (aplicaDescuento ? Math.round(subtotal * 0.1 * 100) / 100 : 0),
-    [aplicaDescuento, subtotal],
+  const descuentoMonto = descuentoCalc.monto;
+  const descuentoError = descuentoCalc.error;
+  const descuentoActivo = descuento !== null && descuentoMonto > 0;
+
+  const total = useMemo(
+    () => redondear2(subtotal - descuentoMonto),
+    [subtotal, descuentoMonto],
   );
-
-  const total = useMemo(() => subtotal - descuento, [subtotal, descuento]);
 
   const sumaPagos = useMemo(
     () =>
@@ -164,11 +213,12 @@ export function VentaNuevaForm() {
 
   const cobroValido = useMemo(() => {
     if (items.length === 0) return false;
+    if (descuentoError) return false;
     if (metodosPago.some((m) => m.metodo === '')) return false;
     if (metodosPago.some((m) => (parseFloat(m.monto) || 0) <= 0)) return false;
     if (diferenciaRestante > 0.01) return false; // falta plata
     return true;
-  }, [items.length, metodosPago, diferenciaRestante]);
+  }, [items.length, descuentoError, metodosPago, diferenciaRestante]);
 
   // ---- Cobro ----
   const onCobrar = useCallback(() => {
@@ -190,6 +240,13 @@ export function VentaNuevaForm() {
     setCobrando(true);
     setErrorCobro(null);
     try {
+      const descuentoPayload =
+        descuento && descuento.valor.trim() !== '' && !descuentoError
+          ? {
+              tipo: descuento.tipo,
+              valor: parseFloat(descuento.valor),
+            }
+          : null;
       const payload = {
         items: items.map((it) => ({
           varianteId: it.varianteId,
@@ -201,6 +258,7 @@ export function VentaNuevaForm() {
             metodo: m.metodo as MetodoPago,
             monto: parseFloat(m.monto),
           })),
+        descuento: descuentoPayload,
       };
       const res = await crearVenta(payload);
       if (!res.ok) {
@@ -224,7 +282,7 @@ export function VentaNuevaForm() {
       submittingRef.current = false;
       setCobrando(false);
     }
-  }, [items, metodosPago, router]);
+  }, [items, metodosPago, descuento, descuentoError, router]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -243,6 +301,9 @@ export function VentaNuevaForm() {
           metodosPago={metodosPago}
           subtotal={subtotal}
           descuento={descuento}
+          descuentoMonto={descuentoMonto}
+          descuentoError={descuentoError}
+          descuentoActivo={descuentoActivo}
           total={total}
           sumaPagos={sumaPagos}
           diferenciaRestante={diferenciaRestante}
@@ -252,6 +313,10 @@ export function VentaNuevaForm() {
           onCambiarMetodo={onCambiarMetodo}
           onCambiarMonto={onCambiarMonto}
           onEliminarMetodo={onEliminarMetodo}
+          onCambiarDescuentoTipo={onCambiarDescuentoTipo}
+          onCambiarDescuentoValor={onCambiarDescuentoValor}
+          onAplicarPresetEfTransf={onAplicarPresetEfTransf}
+          onQuitarDescuento={onQuitarDescuento}
           onCobrar={onCobrar}
           cobrando={cobrando}
         />
@@ -290,6 +355,7 @@ export function VentaNuevaForm() {
         metodosPago={metodosPago}
         subtotal={subtotal}
         descuento={descuento}
+        descuentoMonto={descuentoMonto}
         total={total}
         cobrando={cobrando}
         onConfirmar={onConfirmarCobro}

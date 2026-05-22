@@ -66,6 +66,19 @@ function nombreItem(productoNombre: string, varianteNombre: string, esUnica: boo
   return `${productoNombre} (${varianteNombre})`;
 }
 
+function labelDescuentoDetalle(v: VentaDetalle): string {
+  if (v.descuentoTipo === 'PORCENTAJE' && v.descuentoValor !== null) {
+    const n = v.descuentoValor;
+    const txt = Number.isInteger(n) ? n.toString() : n.toFixed(2);
+    return `Descuento ${txt}%`;
+  }
+  if (v.descuentoTipo === 'MONTO' && v.descuentoValor !== null) {
+    return `Descuento $${Math.round(v.descuentoValor).toLocaleString('es-AR')}`;
+  }
+  // Legacy: aplicaDescuento true sin tipo (ventas pre-cambio).
+  return 'Descuento';
+}
+
 function PagoChips({ metodos }: { metodos: MetodoPagoItem[] }) {
   if (metodos.length === 0) {
     return (
@@ -259,7 +272,7 @@ function DetalleContenido({
               <dd className="tabular-nums">{formatMoneda(venta.subtotal)}</dd>
             </div>
             <div className="flex items-center justify-between text-emerald-700">
-              <dt>Descuento 10%</dt>
+              <dt>{labelDescuentoDetalle(venta)}</dt>
               <dd className="tabular-nums">
                 -{formatMoneda(venta.descuentoTotal)}
               </dd>
