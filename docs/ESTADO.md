@@ -7,7 +7,7 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 7 cerrado (2026-05-22). Dashboard del admin (P7) + Reportes (P8) completos y deployados. Próximo: sprint de housekeeping (sugerido) — unificar naming de roles + sidebar responsive en mobile. A confirmar con Agustín.**
+**Sprint de housekeeping cerrado y deployado (2026-05-22). Naming de roles unificado al enum `Rol` de Prisma + sidebar responsive (drawer mobile / fija desktop). Sin migraciones. Próximo: a confirmar con Agustín (Sprint 8 de testing/implementación según ROADMAP, o features).**
 
 ## Tarea en curso
 
@@ -15,17 +15,19 @@ Ninguna.
 
 ## Último avance
 
-**Sprint 7 — COMPLETO + deployado (2026-05-22)**. Dashboard del admin (P7) + Reportes (P8) en producción.
+**Sprint de housekeeping — COMPLETO + deployado (2026-05-22)**. Dos trabajos saldados en un commit (`8894ba7`).
 
-**Parte 1 — Dashboard del admin (commit `3fc152c`)**. El Admin ve, además de su turno personal (sin cambios), una sección de negocio: caja del día (total + desglose por método + cierres del día con diferencia destacada + turnos abiertos con alerta >12h), top 10 productos del mes (neto de devoluciones), ventas por método del mes, y alertas (turnos largos, stock negativo, productos incompletos). Vendedor sin cambios. Nuevo dominio `lib/reportes/` + helper `lib/fecha.ts` (cortes en hora AR, UTC−3 fijo). Decimals serializados a string.
+**Parte 1 — Unificación de naming de roles**. Canónico único = enum `Rol` de `@prisma/client` (uppercase) de punta a punta. `requireAuth` ahora recibe `Rol[]` (compilador valida los 16 call sites). Eliminados el tipo paralelo `Role = 'admin'|'vendedor'`, los helpers `rolToRole`/`roleToRol` y el `toLowerCase()` del borde. `SessionUser.role` → `SessionUser.rol` para alinear con la columna. El narrow `string → Rol` (Better Auth no soporta enums en additionalFields) vive en un solo lugar: `getCurrentUser` (`lib/auth/session.ts`). No hubo migración: la columna ya estaba tipada como enum en la DB; el lowercase era artefacto de la capa app.
 
-**Parte 2 — Reportes (commit `99daa6a`)**. Ruta `/reportes` Admin-only con filtro de rango (default mes actual, parseo defensivo) y 5 reportes: ventas totales por día/semana/mes, productos más vendidos, ventas por método, ventas por vendedor, horas trabajadas por vendedor. Export CSV client-side (BOM UTF-8 para Excel en Windows). Bucketing por período en hora AR. Link "Reportes" en sidebar solo Admin.
+**Parte 2 — Sidebar responsive**. Breakpoint en `lg` (1024px). Abajo de `lg`, sidebar fija oculta (`hidden lg:flex`) y aparece drawer off-canvas (`Sheet` de shadcn, reusa `@radix-ui/react-dialog` ya instalado) abierto por hamburguesa en el Header (`lg:hidden`). De `lg` para arriba, idéntico a antes (verificado en preview, pixel-igual). Drawer y sidebar consumen la misma `navGroupsForRole(rol)` — sin lista duplicada. El drawer cierra al navegar (`useEffect` sobre `usePathname`). A11y con `SheetTitle` sr-only + focus trap de Radix.
 
-Pendiente de verificación en prod con datos reales (la DB local es seed): cuadre de métodos del día = total vendido, y que las ventas nocturnas caigan en el día AR correcto. Lo verifica Agustín en producción.
+Fuera de alcance (deja para otro ajuste): overflow horizontal de tablas anchas en `/reportes` en pantallas chicas.
 
 ---
 
 ## Historial de sprints anteriores
+
+**Sprint 7.5 — Housekeeping completado (2026-05-22)** — commit `8894ba7` en `main`, deployado. Unificación de naming de roles al enum `Rol` de Prisma (eliminada la doble representación + traducción del borde) + sidebar responsive (drawer `<lg`, fija `≥lg`, fuente única de nav). Sin migración. Decisiones en `DECISIONES.md`.
 
 **Sprint 7 — Dashboard del admin + Reportes completado (2026-05-22)** — commits `3fc152c` + `99daa6a` en `main`, deployado. P7 (dashboard de negocio del admin) + P8 (5 reportes + export CSV client-side). Sin migración. Decisiones en `DECISIONES.md`.
 
@@ -51,12 +53,7 @@ Pendiente de verificación en prod con datos reales (la DB local es seed): cuadr
 
 ## Próxima tarea
 
-**Sprint de housekeeping** (sugerido, a confirmar):
-
-- **Unificar naming de roles** a una sola convención en `requireAuth([...])`. Auditado en Sprint 7: 4 formas conviviendo en 16 rutas. Inventario en `DECISIONES.md`.
-- **Sidebar responsive en mobile** (drawer/colapsable). Hoy el sidebar fijo de 240px estrangula el viewport <400px en todas las rutas; los reportes son los que más sufren.
-
-Ambas son deudas acotadas y ya medidas. Ver `ROADMAP.md` para alternativas si preferimos avanzar con features.
+A definir con Agustín. Candidatos: Sprint 8 (testing/implementación in-situ según ROADMAP), o features adicionales. Ver `ROADMAP.md`.
 
 ## Bloqueos
 
@@ -123,7 +120,8 @@ Ninguno.
 
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
-- **Último commit en main**: `99daa6a` (Sprint 7 — reportes), más el commit de docs de este cierre.
+- **Ubicación local**: `C:\Users\VICTUS\Documents\Sistemas\sistema-felipa` — fuera de OneDrive (movido el 2026-05-22; resolvió el conflicto del file watcher, `next dev` arranca limpio).
+- **Último commit en main**: `8894ba7` (sprint housekeeping — roles + sidebar), más el commit de docs de este cierre.
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.
@@ -131,12 +129,10 @@ Ninguno.
 
 ## Decisiones pendientes
 
-- **Inconsistencia de naming de roles (AUDITADA en Sprint 7)**: 4 convenciones en `requireAuth([...])` sobre 16 rutas — `['ADMIN']`, `['admin']`, `['ADMIN','VENDEDOR']` y `['admin','vendedor']`. Funciona porque `requireAuth` normaliza, pero no está unificado. Detalle en `DECISIONES.md`. Candidato fuerte a próximo sprint.
-- **Sidebar no responsive en mobile**: ancho fijo 240px estrangula el viewport en pantallas <400px, afecta a todas las rutas. Choca con la regla de responsive obligatorio. Candidato a próximo sprint.
 - **`StockPermissions.verCosto` no consumido aún**.
 - **`obtenerHistorialVariante` abierto a Vendedor**: decisión documentada.
 - **Deuda técnica login**: error de "cuenta desactivada" matcheado por string literal. Migrar a código de error custom.
-- **Repo en OneDrive**: file watcher interfiere con git en Windows. Considerar mover a `C:\dev\sistema-felipa`.
+- **Vulnerabilidades npm**: 3 reportadas por `npm audit` (2 high, 1 moderate). No bloquean nada. Revisar y correr `npm audit fix` (lo que no implique breaking changes) durante el housekeeping.
 - Estrategia de backups de la DB en Neon (free tier no tiene point-in-time restore).
 - Dominio para go-live (`felipa.vercel.app` alcanza para el demo; dominio custom a definir con cliente).
 - Compra (o no) de impresora de tickets antes del go-live.

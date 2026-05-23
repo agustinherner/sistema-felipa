@@ -724,5 +724,31 @@ Las agregaciones de caja (`calcularEfectivoVendidoEnTurno`, `obtenerResumenTurno
 - **Usar una librería tipo `date-fns-tz` o `luxon`**: agregar dependencia + bundle size por una operación que UTC−3 fijo + `Intl` resuelven en 30 líneas.
 
 ---
+## 2026-05-22 · Unificación de naming de roles: canónico = enum `Rol` de Prisma
+
+**Por qué**: cerrar la deuda auditada en Sprint 7 (4 convenciones en `requireAuth` sobre 16 rutas + comparaciones sueltas). La causa raíz no eran los strings sueltos sino una doble representación del rol con traducción en el medio: la DB guarda el enum `Rol` uppercase (`ADMIN`/`VENDEDOR`), pero la app consumía un tipo paralelo `Role = 'admin' | 'vendedor'` (`lib/auth/types.ts`) con helpers `rolToRole`/`roleToRol` y un `toLowerCase()` en el lector de sesión.
+
+**Decisión**: canónico único = enum `Rol` de `@prisma/client`, uppercase, como `Rol.ADMIN` / `Rol.VENDEDOR` de punta a punta. `requireAuth` tipado a `Rol[]` (el compilador audita los call sites). Eliminados el tipo `Role`, los helpers de traducción y el `toLowerCase()` del borde. `SessionUser.role` renombrado a `SessionUser.rol` para alinear con la columna y el enum.
+
+**Better Auth**: el additionalField `rol` queda declarado `type: 'string'` porque la librería no soporta enums de Prisma en additionalFields. El narrow `string → Rol` (con guard runtime) vive en un único punto, `getCurrentUser` (`lib/auth/session.ts`). No es drift de tipo en la DB: la columna está realmente tipada como enum (verificado en las migraciones); no hubo migración de datos —el lowercase era puramente un artefacto de la capa app.
+
+**Alternativas descartadas**:
+- **Canonizar en lowercase (union type de TS)**: más barato a corto plazo (sesión y UI ya eran lowercase) pero perpetúa la doble representación y la traducción del borde. El enum la elimina.
+- **Renombrar la columna `rol` o el campo de Better Auth**: fuera de alcance, es coherencia de infra de librería (decisión del 2026-05-08). Solo se unificó el valor/casing y el tipo.
+
+---
+## 2026-05-22 · Sidebar responsive: drawer en mobile, fija en desktop
+
+**Por qué**: la sidebar fija de 240px estrangulaba el viewport <1024px (inusable en celular <400px); los reportes (tablas anchas) eran los más afectados. Chocaba con la regla de responsive obligatorio.
+
+**Decisión**: breakpoint en `lg` (1024px). Abajo de `lg` la sidebar fija se oculta (`hidden lg:flex`) y aparece un drawer off-canvas (`Sheet` de shadcn, reusa `@radix-ui/react-dialog` ya instalado) abierto por una hamburguesa en el Header (`lg:hidden`). De `lg` para arriba, idéntico a antes (cero cambio en desktop).
+
+**Fuente única de navegación**: drawer y sidebar consumen el mismo `navGroupsForRole(rol)` de `lib/nav.ts` (ya tipado a `Rol`). Sin lista duplicada. El drawer cierra al navegar (`useEffect` sobre `usePathname`). A11y vía Radix + `SheetTitle` sr-only.
+
+**Por qué `lg` y no `md`**: en tablet portrait (768px) la sidebar fija le robaba ancho a las tablas de reportes. Si en uso real molesta, bajar a `md` es cambiar una clase.
+
+**Fuera de alcance**: el overflow horizontal de tablas anchas (`overflow-x-auto`) queda para un ajuste aparte.
+
+---
 
 _(Próximas decisiones van acá abajo, en orden cronológico.)_

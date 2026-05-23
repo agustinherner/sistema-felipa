@@ -280,6 +280,22 @@ Neon (São Paulo, sa-east-1), Vercel auto-deploy desde `main`. Login, ventas, st
 
 ---
 
+## Sprint 7.5 — Housekeeping ✅ (2026-05-22)
+
+**Objetivo**: saldar dos deudas acotadas auditadas en Sprint 7, sin tocar features.
+
+**Entregables**:
+- **Unificación de naming de roles** ✅ — commit `8894ba7`. Canónico único = enum `Rol` de `@prisma/client` (uppercase) de punta a punta. `requireAuth` tipado a `Rol[]`. Eliminados el tipo paralelo `Role`, los helpers de traducción y el `toLowerCase()` del borde. `SessionUser.role` → `.rol`. Sin migración: la columna ya estaba tipada como enum en la DB.
+- **Sidebar responsive** ✅ — mismo commit. Breakpoint `lg` (1024px). Drawer off-canvas (`Sheet` de shadcn) en mobile, sidebar fija intacta en desktop. Fuente única de nav (`navGroupsForRole(rol)`).
+
+**Fuera de alcance** (deja para más adelante):
+- Overflow horizontal de tablas anchas en `/reportes` en pantallas chicas (`overflow-x-auto`).
+- `npm audit fix` (las 3 vulnerabilidades reportadas no se tocaron).
+
+**Duración real**: 1 sesión.
+
+---
+
 ## Sprint 8 — Testing, implementación y capacitación (Etapa 4 de propuesta)
 
 **Objetivo**: que el sistema funcione en el local productivo y el equipo lo use bien.
