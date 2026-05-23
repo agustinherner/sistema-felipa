@@ -7,7 +7,7 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint de housekeeping cerrado y deployado (2026-05-22). Naming de roles unificado al enum `Rol` de Prisma + sidebar responsive (drawer mobile / fija desktop). Sin migraciones. Próximo: a confirmar con Agustín (Sprint 8 de testing/implementación según ROADMAP, o features).**
+**Sprint 9 — Configuración del negocio cerrado y deployado (2026-05-23). Tabla `Configuracion` singleton + pantalla `/configuracion` (datos del negocio, parámetros de venta y stock + "Mi cuenta") + cableado de los 5 parámetros (markup, descuento, días de devolución, umbral de stock, datos del comprobante). Migración aplicada a Neon previo al deploy. Próximo: sprint de optimización de performance.**
 
 ## Tarea en curso
 
@@ -15,17 +15,21 @@ Ninguna.
 
 ## Último avance
 
-**Sprint de housekeeping — COMPLETO + deployado (2026-05-22)**. Dos trabajos saldados en un commit (`8894ba7`).
+**Sprint 9 — Configuración del negocio — COMPLETO + deployado (2026-05-23)**. Commit `74cd304` en `main`. Pantalla de configuración del negocio + Mi cuenta + cableado de los 5 parámetros (markup, descuento, días de devolución, umbral de stock, datos del comprobante).
 
-**Parte 1 — Unificación de naming de roles**. Canónico único = enum `Rol` de `@prisma/client` (uppercase) de punta a punta. `requireAuth` ahora recibe `Rol[]` (compilador valida los 16 call sites). Eliminados el tipo paralelo `Role = 'admin'|'vendedor'`, los helpers `rolToRole`/`roleToRol` y el `toLowerCase()` del borde. `SessionUser.role` → `SessionUser.rol` para alinear con la columna. El narrow `string → Rol` (Better Auth no soporta enums en additionalFields) vive en un solo lugar: `getCurrentUser` (`lib/auth/session.ts`). No hubo migración: la columna ya estaba tipada como enum en la DB; el lowercase era artefacto de la capa app.
+Modelo: tabla `Configuracion` singleton con datos del negocio (nombre, dirección, teléfono, CUIT), parámetros de venta (`markupDefault` como multiplicador, `descuentoEstandar` como %) y stock/devoluciones (`diasDevolucion`, `umbralStockBajo`). Decimals para los porcentajes. Migración aplicada a Neon previo al deploy.
 
-**Parte 2 — Sidebar responsive**. Breakpoint en `lg` (1024px). Abajo de `lg`, sidebar fija oculta (`hidden lg:flex`) y aparece drawer off-canvas (`Sheet` de shadcn, reusa `@radix-ui/react-dialog` ya instalado) abierto por hamburguesa en el Header (`lg:hidden`). De `lg` para arriba, idéntico a antes (verificado en preview, pixel-igual). Drawer y sidebar consumen la misma `navGroupsForRole(rol)` — sin lista duplicada. El drawer cierra al navegar (`useEffect` sobre `usePathname`). A11y con `SheetTitle` sr-only + focus trap de Radix.
+Lectura: `obtenerConfiguracion()` en `lib/configuracion/queries.ts` con get-or-create (autocrea el row con `CONFIGURACION_DEFAULTS` si no existe) envuelto en `cache()` de React. El seed quedó reducido a llamar al helper —la fuente de defaults vive en un solo lugar.
 
-Fuera de alcance (deja para otro ajuste): overflow horizontal de tablas anchas en `/reportes` en pantallas chicas.
+Cableado: markup en `ProductoForm` (multiplicador 2.15 = "115%", con helper para limpiar drift de FP), descuento del botón "1 toque" Ef/Transf, días de devolución en `crearDevolucion` **y** en `DetalleVentaModal` (tenía un segundo hardcode), umbral de stock bajo en queries + helpers puros + componentes, y datos del negocio en el comprobante de WhatsApp (campos opcionales se omiten si son null). Patrón: la config se lee en el borde (RSC / server actions) y se pasa como prop a los client components; los helpers puros reciben los valores como parámetro.
+
+Permisos: `/configuracion` abierto a `[ADMIN, VENDEDOR]` para que la vendedora acceda a "Mi cuenta"; las cards del negocio se renderizan solo para Admin (HTML, no CSS) y el server action `actualizarConfiguracion` valida Admin independientemente. "Mi cuenta" usa `auth.api.changePassword` (requiere la actual + nueva), distinto del reset-by-admin del 2026-05-08.
 
 ---
 
 ## Historial de sprints anteriores
+
+**Sprint 9 — Configuración del negocio completado (2026-05-23)** — commit `74cd304` en `main`, deployado. Tabla `Configuracion` singleton + pantalla `/configuracion` + "Mi cuenta" + cableado de los 5 parámetros. Migración aplicada a Neon. Decisiones en `DECISIONES.md`.
 
 **Sprint 7.5 — Housekeeping completado (2026-05-22)** — commit `8894ba7` en `main`, deployado. Unificación de naming de roles al enum `Rol` de Prisma (eliminada la doble representación + traducción del borde) + sidebar responsive (drawer `<lg`, fija `≥lg`, fuente única de nav). Sin migración. Decisiones en `DECISIONES.md`.
 
@@ -53,7 +57,7 @@ Fuera de alcance (deja para otro ajuste): overflow horizontal de tablas anchas e
 
 ## Próxima tarea
 
-A definir con Agustín. Candidatos: Sprint 8 (testing/implementación in-situ según ROADMAP), o features adicionales. Ver `ROADMAP.md`.
+**Sprint de optimización de performance.** La app tarda en cargar; primer sospechoso a investigar: cold starts de Vercel/Neon free tier. Ver `ROADMAP.md`.
 
 ## Bloqueos
 
@@ -121,7 +125,7 @@ Ninguno.
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
 - **Ubicación local**: `C:\Users\VICTUS\Documents\Sistemas\sistema-felipa` — fuera de OneDrive (movido el 2026-05-22; resolvió el conflicto del file watcher, `next dev` arranca limpio).
-- **Último commit en main**: `8894ba7` (sprint housekeeping — roles + sidebar), más el commit de docs de este cierre.
+- **Último commit en main**: `74cd304` (Sprint 9 — configuración del negocio), más el commit de docs de cierre.
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.
@@ -133,6 +137,7 @@ Ninguno.
 - **`obtenerHistorialVariante` abierto a Vendedor**: decisión documentada.
 - **Deuda técnica login**: error de "cuenta desactivada" matcheado por string literal. Migrar a código de error custom.
 - **Vulnerabilidades npm**: 3 reportadas por `npm audit` (2 high, 1 moderate). No bloquean nada. Revisar y correr `npm audit fix` (lo que no implique breaking changes) durante el housekeeping.
+- **`obtenerConfiguracion()` upsert por request**: el get-or-create del Sprint 9 hace una escritura por cada request (deduplicada por `cache()` de React). Para el sprint de optimización: pasarlo a buscar-y-crear-si-falta para que el caso normal sea solo lectura.
 - Estrategia de backups de la DB en Neon (free tier no tiene point-in-time restore).
 - Dominio para go-live (`felipa.vercel.app` alcanza para el demo; dominio custom a definir con cliente).
 - Compra (o no) de impresora de tickets antes del go-live.

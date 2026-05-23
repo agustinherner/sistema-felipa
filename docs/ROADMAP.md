@@ -296,6 +296,36 @@ Neon (São Paulo, sa-east-1), Vercel auto-deploy desde `main`. Login, ventas, st
 
 ---
 
+## Sprint 9 — Configuración del negocio ✅ (2026-05-23)
+
+**Objetivo**: dar a Felipa una pantalla para editar los parámetros del negocio que estaban hardcodeados, sin tocar código.
+
+**Entregables**:
+- **Tabla `Configuracion` singleton** ✅ — un único row (id fijo) con datos del negocio (nombre, dirección, teléfono, CUIT), parámetros de venta (`markupDefault` como multiplicador, `descuentoEstandar` como %) y stock/devoluciones (`diasDevolucion`, `umbralStockBajo`). Migración propia, aplicada a Neon previo al deploy.
+- **Pantalla `/configuracion`** ✅ — Admin edita las 3 secciones del negocio; cualquier rol logueado ve "Mi cuenta" para cambiar su propia password (`auth.api.changePassword`, requiere la actual).
+- **Helper get-or-create** ✅ — `obtenerConfiguracion()` autocrea el row con `CONFIGURACION_DEFAULTS` si no existe, envuelto en `cache()` de React. Única fuente de defaults; el seed quedó reducido a llamar al helper. En prod alcanza con aplicar la migración —el row se autocrea en la primera lectura.
+- **Cableado de los 5 parámetros** ✅ — markup en `ProductoForm`, descuento del botón "1 toque" Ef/Transf, días de devolución en `crearDevolucion` **y** en `DetalleVentaModal` (tenía un segundo hardcode), umbral de stock bajo en queries + helpers puros + componentes de display, datos del negocio en el comprobante de WhatsApp. Patrón: la config se lee en el borde (RSC / server actions) y se pasa como prop a los client components; los helpers puros reciben los valores como parámetro.
+
+**Cerrado en un commit de código + un commit de docs**: `74cd304`.
+
+**Duración real**: 2 sesiones (fundación + cableado).
+
+---
+
+## Sprint 10 — Optimización de performance (próximo)
+
+**Objetivo**: bajar el tiempo de carga percibido por el usuario. La app se siente lenta en uso real.
+
+**Hipótesis a investigar (orden tentativo)**:
+- **Cold starts**: Vercel functions + Neon scale-to-zero en free tier. Medir y decidir si vale upgrade o mitigar (warm-up cron, fluid compute, etc.).
+- **Queries pesadas / N+1**: auditar las consultas de las pantallas más usadas (ventas, stock, dashboard, reportes).
+- **Bundles client demasiado grandes** o JS hidratando de más en pantallas que podrían ser server-only.
+- **`obtenerConfiguracion()` upsert por request** (deuda anotada del Sprint 9): pasar a buscar-y-crear-si-falta para que el caso normal sea solo lectura.
+
+**Entregables**: medición antes/después documentada, cambios aplicados, criterio de "ok" definido al arrancar.
+
+---
+
 ## Sprint 8 — Testing, implementación y capacitación (Etapa 4 de propuesta)
 
 **Objetivo**: que el sistema funcione en el local productivo y el equipo lo use bien.

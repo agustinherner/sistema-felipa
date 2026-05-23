@@ -751,4 +751,26 @@ Las agregaciones de caja (`calcularEfectivoVendidoEnTurno`, `obtenerResumenTurno
 
 ---
 
+## 2026-05-23 · Configuración del negocio: tabla singleton + parámetros cableados
+
+**Por qué**: la pantalla `/configuracion` era el último placeholder del scaffold ("se implementa en Sprint 9"). Varios valores de negocio estaban hardcodeados y el dueño no podía tocarlos sin pedir un cambio de código.
+
+**Modelo**: tabla `Configuracion` singleton (un row, id fijo) con datos del negocio (nombre, dirección, teléfono, CUIT), parámetros de venta (markupDefault, descuentoEstandar) y de stock/devoluciones (diasDevolucion, umbralStockBajo). Decimals para los porcentajes.
+
+**get-or-create como única fuente de defaults**: `obtenerConfiguracion()` (`lib/configuracion/queries.ts`) autocrea el row con `CONFIGURACION_DEFAULTS` si no existe, envuelto en `cache()` de React. En prod alcanza con aplicar la migración —el row se autocrea en la primera lectura, no hay que seedear. El seed quedó reducido a llamar al helper.
+
+**Parámetros cableados** (comportamiento idéntico al previo con los defaults):
+- Markup: se mantiene como **multiplicador 2.15** (no se reinterpretó; la UI lo muestra como 115% con un helper que limpia el drift de floating point). El `MARKUP` del seed de productos queda determinista, no se cablea.
+- Descuento estándar, días de devolución (en `crearDevolucion` **y** en `DetalleVentaModal`, que tenía un segundo hardcode), umbral de stock bajo (queries + helpers + componentes de display), y datos del negocio en el comprobante de WhatsApp.
+
+**Patrón de cableado**: la config se lee en el borde (RSC / server actions) y se pasa como **prop** a los client components; los helpers puros (clasificación de stock, armado del comprobante) reciben los valores como parámetro, no leen la DB.
+
+**Permisos**: `/configuracion` se abrió a `[ADMIN, VENDEDOR]` a nivel ruta para que la vendedora acceda a "Mi cuenta"; las cards del negocio se renderizan solo para Admin (a nivel HTML, no CSS) y el server action `actualizarConfiguracion` valida Admin independientemente.
+
+**Cambio de password propia**: `auth.api.changePassword` (requiere la actual, `revokeOtherSessions: false`). Distinto del reset-by-admin del 2026-05-08 (hashPassword directo + revoca sesiones), porque el caso de uso es otro.
+
+**Deuda anotada**: el get-or-create hace un upsert (escritura) por request (deduplicado por `cache()`). Para el sprint de optimización: pasarlo a buscar-y-crear-si-falta para que el caso normal sea solo lectura.
+
+---
+
 _(Próximas decisiones van acá abajo, en orden cronológico.)_
