@@ -211,10 +211,16 @@ export function BusquedaInput({ onAgregar }: Props) {
         </div>
       )}
 
-      {terminoSinResultados && !dropdownAbierto && !pending && (
+      {/* Botón de alta rápida: visible siempre que haya un término no trivial,
+          no solo cuando la búsqueda devolvió 0 resultados. Cubre el caso de
+          match parcial (la vendedora teclea un nombre nuevo pero el catálogo
+          tiene productos con palabras similares) y también el caso de error
+          silencioso del server action — en ambos, antes el botón quedaba
+          oculto y la vendedora no tenía cómo dar de alta el producto. */}
+      {valor.trim().length >= MIN_DEBOUNCE_LEN && !dropdownAbierto && !pending && (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm">
           <span className="text-muted-foreground">
-            ¿No está &ldquo;{terminoSinResultados}&rdquo; en el sistema?
+            ¿No está &ldquo;{terminoSinResultados ?? valor.trim()}&rdquo; en el sistema?
           </span>
           <Button
             type="button"
@@ -281,6 +287,21 @@ export function BusquedaInput({ onAgregar }: Props) {
               </li>
             );
           })}
+          {/* Footer "agregar nuevo" dentro del dropdown: cubre el caso de
+              match parcial — la vendedora ve resultados similares pero ninguno
+              es el suyo y necesita dar de alta uno nuevo sin cerrar antes. */}
+          <li
+            role="option"
+            aria-selected={false}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setAltaRapidaAbierta(true);
+            }}
+            className="flex cursor-pointer items-center gap-2 border-t bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent/60"
+          >
+            <Plus className="h-4 w-4" />
+            Ninguno es el que busco — agregar &ldquo;{valor.trim()}&rdquo;
+          </li>
         </ul>
       )}
     </div>
