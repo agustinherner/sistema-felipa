@@ -7,7 +7,7 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 9 — Configuración del negocio cerrado y deployado (2026-05-23). Tabla `Configuracion` singleton + pantalla `/configuracion` (datos del negocio, parámetros de venta y stock + "Mi cuenta") + cableado de los 5 parámetros (markup, descuento, días de devolución, umbral de stock, datos del comprobante). Migración aplicada a Neon previo al deploy. Próximo: sprint de optimización de performance.**
+**Sprint 10 — Optimización de performance — Fase 1 cerrada y deployada (2026-05-23). `vercel.json` con `regions: ["gru1"]` (misma región que Neon) + 4 `loading.tsx` con skeletons (grupo app + dashboard + turno/cerrar + ventas/nueva). La navegación entre pantallas bajó de 6-10s a <2s solo con la Fase 1 —la geografía era el cuello principal. Fase 2 (dedup de queries) y cron keep-warm parqueados; ver `DECISIONES.md`.**
 
 ## Tarea en curso
 
@@ -15,19 +15,21 @@ Ninguna.
 
 ## Último avance
 
-**Sprint 9 — Configuración del negocio — COMPLETO + deployado (2026-05-23)**. Commit `74cd304` en `main`. Pantalla de configuración del negocio + Mi cuenta + cableado de los 5 parámetros (markup, descuento, días de devolución, umbral de stock, datos del comprobante).
+**Sprint 10 — Optimización Fase 1 — COMPLETO + deployado (2026-05-23)**. Commit `75054cb` en `main` (código) + commit de docs de cierre.
 
-Modelo: tabla `Configuracion` singleton con datos del negocio (nombre, dirección, teléfono, CUIT), parámetros de venta (`markupDefault` como multiplicador, `descuentoEstandar` como %) y stock/devoluciones (`diasDevolucion`, `umbralStockBajo`). Decimals para los porcentajes. Migración aplicada a Neon previo al deploy.
+**Diagnóstico**: tres causas sumadas — Serverless Functions en iad1 (US-East) con Neon en São Paulo (~120ms por round-trip), driver TCP clásico de Prisma (handshake por cold start), y cascadas de queries secuenciales en pantallas pesadas (dashboard ~5-6 RTTs, `/turno/cerrar` 5 con duplicada, `/ventas/nueva` 4 con `getCurrentUser` duplicado). Plus cero `loading.tsx`.
 
-Lectura: `obtenerConfiguracion()` en `lib/configuracion/queries.ts` con get-or-create (autocrea el row con `CONFIGURACION_DEFAULTS` si no existe) envuelto en `cache()` de React. El seed quedó reducido a llamar al helper —la fuente de defaults vive en un solo lugar.
+**Fase 1 (única deployada)**: `vercel.json` con `regions: ["gru1"]` —RTT de ~120ms a ~5-20ms—; primitivo `components/ui/skeleton.tsx` + 4 `loading.tsx` que imitan el layout real (cards, stats, tabla, form, dos columnas); `/health` ya hacía `prisma.$queryRaw\`SELECT 1\``, quedó como keep-warm para ping externo.
 
-Cableado: markup en `ProductoForm` (multiplicador 2.15 = "115%", con helper para limpiar drift de FP), descuento del botón "1 toque" Ef/Transf, días de devolución en `crearDevolucion` **y** en `DetalleVentaModal` (tenía un segundo hardcode), umbral de stock bajo en queries + helpers puros + componentes, y datos del negocio en el comprobante de WhatsApp (campos opcionales se omiten si son null). Patrón: la config se lee en el borde (RSC / server actions) y se pasa como prop a los client components; los helpers puros reciben los valores como parámetro.
+**Resultado**: navegación de 6-10s a <2s. La primera carga del día conserva el cold start de Neon pero no molesta en uso. Se cierra el sprint en Fase 1; la Fase 2 se descarta por ahora (con <2s no justifica tocar el cálculo de turno/ventas).
 
-Permisos: `/configuracion` abierto a `[ADMIN, VENDEDOR]` para que la vendedora acceda a "Mi cuenta"; las cards del negocio se renderizan solo para Admin (HTML, no CSS) y el server action `actualizarConfiguracion` valida Admin independientemente. "Mi cuenta" usa `auth.api.changePassword` (requiere la actual + nueva), distinto del reset-by-admin del 2026-05-08.
+**Parqueado, para retomar si el uso real lo pide**: cron keep-warm de Neon (cuenta de cron-job.org creada, falta horario del local), Fase 2 dedup de queries (ya diagnosticada), driver serverless de Neon (HTTP) en Prisma.
 
 ---
 
 ## Historial de sprints anteriores
+
+**Sprint 10 — Optimización de performance Fase 1 completado (2026-05-23)** — commit `75054cb` en `main`, deployado. Región `gru1` (São Paulo, alineada con Neon) + 4 `loading.tsx` con skeletons. Bajó la navegación de 6-10s a <2s. Fase 2 (dedup) y cron keep-warm parqueados. Decisiones en `DECISIONES.md`.
 
 **Sprint 9 — Configuración del negocio completado (2026-05-23)** — commit `74cd304` en `main`, deployado. Tabla `Configuracion` singleton + pantalla `/configuracion` + "Mi cuenta" + cableado de los 5 parámetros. Migración aplicada a Neon. Decisiones en `DECISIONES.md`.
 
@@ -57,7 +59,7 @@ Permisos: `/configuracion` abierto a `[ADMIN, VENDEDOR]` para que la vendedora a
 
 ## Próxima tarea
 
-**Sprint de optimización de performance.** La app tarda en cargar; primer sospechoso a investigar: cold starts de Vercel/Neon free tier. Ver `ROADMAP.md`.
+**Ninguna activa.** Sprint 10 cerrado en Fase 1. **Parqueado** hasta que el uso real lo pida: cron keep-warm de Neon (ataca la primera carga del día —scale-to-zero del free tier) y Fase 2 de optimización (dedup de queries, ya diagnosticada). Ver `DECISIONES.md` y `ROADMAP.md`.
 
 ## Bloqueos
 
@@ -125,7 +127,7 @@ Ninguno.
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
 - **Ubicación local**: `C:\Users\VICTUS\Documents\Sistemas\sistema-felipa` — fuera de OneDrive (movido el 2026-05-22; resolvió el conflicto del file watcher, `next dev` arranca limpio).
-- **Último commit en main**: `74cd304` (Sprint 9 — configuración del negocio), más el commit de docs de cierre.
+- **Último commit en main**: `75054cb` (Sprint 10 Fase 1 — región gru1 + loading skeletons + health keep-warm), más el commit de docs de cierre.
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.
@@ -138,6 +140,9 @@ Ninguno.
 - **Deuda técnica login**: error de "cuenta desactivada" matcheado por string literal. Migrar a código de error custom.
 - **Vulnerabilidades npm**: 3 reportadas por `npm audit` (2 high, 1 moderate). No bloquean nada. Revisar y correr `npm audit fix` (lo que no implique breaking changes) durante el housekeeping.
 - **`obtenerConfiguracion()` upsert por request**: el get-or-create del Sprint 9 hace una escritura por cada request (deduplicada por `cache()` de React). Para el sprint de optimización: pasarlo a buscar-y-crear-si-falta para que el caso normal sea solo lectura.
+- **Cron keep-warm de Neon** (parqueado, Sprint 10): cuenta de cron-job.org creada; falta el ping a `/health` cada 4 min en horario del local (pendiente confirmar horarios de apertura). Ataca la primera carga del día (scale-to-zero del free tier).
+- **Fase 2 de optimización — dedup de queries** (parqueado, Sprint 10, ya diagnosticada): cachear `getCurrentUser`, sacar la doble `venta.findMany` en `/turno/cerrar`, una sola `ventasPorMetodoPago` en el dashboard, romper la cascada. Con la región alineada cada RTT vale ~5ms, así que el impacto es mucho menor que antes — evaluar si vale el riesgo (toca cálculo de turno/ventas).
+- **Driver serverless de Neon (HTTP) en Prisma** (parqueado, Sprint 10): última palanca para cold starts. Reemplaza el driver TCP clásico por `@prisma/adapter-neon` + `@neondatabase/serverless`.
 - Estrategia de backups de la DB en Neon (free tier no tiene point-in-time restore).
 - Dominio para go-live (`felipa.vercel.app` alcanza para el demo; dominio custom a definir con cliente).
 - Compra (o no) de impresora de tickets antes del go-live.

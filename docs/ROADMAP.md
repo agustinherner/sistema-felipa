@@ -312,17 +312,24 @@ Neon (São Paulo, sa-east-1), Vercel auto-deploy desde `main`. Login, ventas, st
 
 ---
 
-## Sprint 10 — Optimización de performance (próximo)
+## Sprint 10 — Optimización de performance — Fase 1 ✅ (2026-05-23)
 
-**Objetivo**: bajar el tiempo de carga percibido por el usuario. La app se siente lenta en uso real.
+**Objetivo**: bajar el tiempo de carga percibido por el usuario. La app se sentía lenta en uso real (6-10s por navegación).
 
-**Hipótesis a investigar (orden tentativo)**:
-- **Cold starts**: Vercel functions + Neon scale-to-zero en free tier. Medir y decidir si vale upgrade o mitigar (warm-up cron, fluid compute, etc.).
-- **Queries pesadas / N+1**: auditar las consultas de las pantallas más usadas (ventas, stock, dashboard, reportes).
-- **Bundles client demasiado grandes** o JS hidratando de más en pantallas que podrían ser server-only.
-- **`obtenerConfiguracion()` upsert por request** (deuda anotada del Sprint 9): pasar a buscar-y-crear-si-falta para que el caso normal sea solo lectura.
+**Diagnóstico** (auditoría inicial, preservado en `DECISIONES.md`): tres causas sumadas — Serverless Functions en iad1 con Neon en São Paulo (~120ms RTT), driver TCP clásico de Prisma (handshake por cold start), cascadas de queries secuenciales en pantallas pesadas, cero `loading.tsx`.
 
-**Entregables**: medición antes/después documentada, cambios aplicados, criterio de "ok" definido al arrancar.
+**Fase 1 hecha** ✅ — commit `75054cb` en `main`, deployado:
+- `vercel.json` con `regions: ["gru1"]` (São Paulo, misma región que Neon) → RTT de ~120ms a ~5-20ms.
+- Primitivo `components/ui/skeleton.tsx` + 4 `loading.tsx` que imitan el layout real: grupo `(app)`, `/dashboard`, `/turno/cerrar`, `/ventas/nueva`.
+- `/health` ya ejecutaba `prisma.$queryRaw\`SELECT 1\`` — queda como keep-warm para ping externo.
+
+**Resultado**: navegación entre pantallas de 6-10s a <2s. La geografía era el cuello principal. La primera carga del día conserva el cold start de Neon pero no molesta en uso. Se cierra el sprint en Fase 1.
+
+**Parqueado** (para retomar si el uso real lo pide):
+- **Cron keep-warm de Neon**: cuenta de cron-job.org creada; falta el ping a `/health` cada 4 min en horario del local. Ataca la primera carga del día (scale-to-zero del free tier).
+- **Fase 2 — dedup de queries** (ya diagnosticada): cachear `getCurrentUser`, sacar la doble `venta.findMany` en `/turno/cerrar`, una sola `ventasPorMetodoPago` en el dashboard, romper la cascada del dashboard. Con la región alineada cada RTT vale ~5ms, así que el impacto es mucho menor que antes — descartada por ahora porque toca cálculo de turno/ventas (plata) y <2s no lo justifica.
+- **Driver serverless de Neon (HTTP) en Prisma**: última palanca para cold starts. Reemplaza el driver TCP clásico por `@prisma/adapter-neon` + `@neondatabase/serverless`.
+- **`obtenerConfiguracion()` upsert por request** (deuda del Sprint 9): pasar a buscar-y-crear-si-falta para que el caso normal sea solo lectura.
 
 ---
 

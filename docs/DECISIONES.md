@@ -773,4 +773,21 @@ Las agregaciones de caja (`calcularEfectivoVendidoEnTurno`, `obtenerResumenTurno
 
 ---
 
+## 2026-05-23 · Optimización de performance — Fase 1 (geografía + percepción)
+
+**Síntoma**: cada navegación a una pantalla nueva tardaba 6-10s; fluida una vez cargada.
+
+**Diagnóstico** (preservado para retomar): tres causas sumadas — (1) las Serverless Functions corrían en iad1 (US-East) y Neon está en São Paulo → ~120ms por round-trip; (2) driver TCP clásico de Prisma (handshake completo por cold start); (3) cascadas de queries secuenciales en las pantallas pesadas (dashboard ~5-6 RTTs en serie con dos `ventasPorMetodoPago` idénticos; `/turno/cerrar` 5 RTTs con una `venta.findMany` duplicada; `/ventas/nueva` 4 RTTs con `getCurrentUser` duplicado). Además, cero `loading.tsx`.
+
+**Fase 1 hecha** (commit `75054cb`): `vercel.json` con `regions: ["gru1"]` (misma región que Neon) → RTT de ~120ms a ~5-20ms; 4 `loading.tsx` con skeletons (grupo app + dashboard + turno/cerrar + ventas/nueva); `/health` ya hacía `SELECT 1`.
+
+**Resultado**: la navegación entre pantallas bajó de 6-10s a menos de 2s solo con la Fase 1 —la geografía era el cuello principal. La primera carga del día conserva el cold start de Neon pero no molesta en uso. Se cierra el sprint en Fase 1; la Fase 2 (dedup de queries) se descarta por ahora: con <2s no justifica tocar el cálculo de turno/ventas. Cron keep-warm parqueado (cuenta creada, falta horario del local).
+
+**Parqueado, para retomar si el uso real lo pide**:
+- Keep-warm de Neon: cuenta de cron-job.org creada; falta el ping a `/health` cada 4 min en horario del local (pendiente confirmar horarios de apertura). Ataca la lentitud de la primera carga del día (scale-to-zero del free tier).
+- Fase 2 (dedup de queries, ya diagnosticada): cachear `getCurrentUser`, sacar la doble `venta.findMany` en `/turno/cerrar`, una sola `ventasPorMetodoPago` en el dashboard, romper la cascada. Nota: con la región alineada cada RTT vale ~5ms, así que el impacto de esta fase es mucho menor que antes — evaluar si vale el riesgo, porque toca cálculo de turno/ventas (plata).
+- Driver serverless de Neon (HTTP) en Prisma: última palanca para cold starts.
+
+---
+
 _(Próximas decisiones van acá abajo, en orden cronológico.)_
