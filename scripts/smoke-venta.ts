@@ -13,7 +13,7 @@
  *   npx tsx scripts/smoke-venta.ts
  */
 
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, Rol } from '@prisma/client';
 import { crearVentaCore } from '../lib/ventas/core';
 
 const prisma = new PrismaClient();
@@ -52,7 +52,7 @@ async function setupFixture(): Promise<Fixture> {
     data: {
       email: `${FIXTURE_TAG}@example.com`,
       nombre: 'Smoke User',
-      rol: 'VENDEDOR',
+      rol: Rol.VENDEDOR,
       sucursalId: sucursal.id,
     },
   });

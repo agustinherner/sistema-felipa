@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Prisma } from '@prisma/client';
+import { Prisma, Rol } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth/session';
 import {
@@ -93,7 +93,7 @@ const ERROR_GENERICO = 'Error inesperado al guardar. Reintentá o contactá al a
 export async function crearProducto(
   rawInput: unknown,
 ): Promise<ActionResult<{ productoId: string }>> {
-  const user = await requireAuth(['ADMIN']);
+  const user = await requireAuth([Rol.ADMIN]);
 
   const parsed = ProductoInputSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -191,7 +191,7 @@ export async function editarProducto(
   id: string,
   rawInput: unknown,
 ): Promise<ActionOk | ActionFail> {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
 
   const parsed = ProductoInputSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -324,7 +324,7 @@ export async function editarProducto(
 export async function desactivarProducto(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
   try {
     const producto = await prisma.producto.findUnique({
       where: { id },
@@ -347,7 +347,7 @@ export async function desactivarProducto(
 export async function reactivarProducto(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
   try {
     const producto = await prisma.producto.findUnique({
       where: { id },
@@ -374,7 +374,7 @@ export async function crearCategoria(
   | { ok: true; categoria: { id: string; nombre: string } }
   | { ok: false; error: string }
 > {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
   const parsed = CategoriaInputSchema.safeParse({
     nombre,
     descripcion,
@@ -417,7 +417,7 @@ export async function crearProductoRapido(
     precio: number;
   }>
 > {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
 
   const parsed = ProductoRapidoInputSchema.safeParse(rawInput);
   if (!parsed.success) {

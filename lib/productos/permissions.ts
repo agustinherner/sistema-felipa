@@ -1,4 +1,4 @@
-import type { Role } from '@/lib/auth/types';
+import { Rol } from '@prisma/client';
 
 export type ProductoPermissions = {
   /** Ver costos (costoBase y costo de variante) y márgenes en el listado y el detalle. */
@@ -11,14 +11,8 @@ export type ProductoPermissions = {
   eliminar: boolean;
 };
 
-/**
- * Mapea rol → permisos del módulo Productos.
- *
- * El call site (Server Component) recibe `Role` ya normalizado desde la
- * sesión (`admin` / `vendedor`) y lo pasa directo.
- */
-export function permisosProductos(role: Role): ProductoPermissions {
-  if (role === 'admin') {
+export function permisosProductos(rol: Rol): ProductoPermissions {
+  if (rol === Rol.ADMIN) {
     return {
       verCosto: true,
       crear: true,

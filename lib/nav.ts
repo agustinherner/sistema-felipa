@@ -10,13 +10,13 @@ import {
   Warehouse,
   type LucideIcon,
 } from 'lucide-react';
-import type { Role } from './auth/types';
+import { Rol } from '@prisma/client';
 
 export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  roles: Role[];
+  roles: Rol[];
 };
 
 export type NavGroup = {
@@ -32,25 +32,25 @@ export const navGroups: NavGroup[] = [
         href: '/ventas/nueva',
         label: 'Nueva venta',
         icon: ShoppingCart,
-        roles: ['admin', 'vendedor'],
+        roles: [Rol.ADMIN, Rol.VENDEDOR],
       },
       {
         href: '/ventas',
         label: 'Ventas',
         icon: Receipt,
-        roles: ['admin', 'vendedor'],
+        roles: [Rol.ADMIN, Rol.VENDEDOR],
       },
       {
         href: '/productos',
         label: 'Productos',
         icon: Package,
-        roles: ['admin', 'vendedor'],
+        roles: [Rol.ADMIN, Rol.VENDEDOR],
       },
       {
         href: '/turno/abrir',
         label: 'Mi turno',
         icon: Clock,
-        roles: ['admin', 'vendedor'],
+        roles: [Rol.ADMIN, Rol.VENDEDOR],
       },
     ],
   },
@@ -61,41 +61,41 @@ export const navGroups: NavGroup[] = [
         href: '/dashboard',
         label: 'Dashboard',
         icon: LayoutDashboard,
-        roles: ['admin'],
+        roles: [Rol.ADMIN],
       },
       {
         href: '/stock',
         label: 'Stock',
         icon: Warehouse,
-        roles: ['admin', 'vendedor'],
+        roles: [Rol.ADMIN, Rol.VENDEDOR],
       },
       {
         href: '/reportes',
         label: 'Reportes',
         icon: BarChart3,
-        roles: ['admin'],
+        roles: [Rol.ADMIN],
       },
       {
         href: '/usuarios',
         label: 'Usuarios',
         icon: Users,
-        roles: ['admin'],
+        roles: [Rol.ADMIN],
       },
       {
         href: '/configuracion',
         label: 'Configuración',
         icon: Settings,
-        roles: ['admin'],
+        roles: [Rol.ADMIN],
       },
     ],
   },
 ];
 
-export function navGroupsForRole(role: Role): NavGroup[] {
+export function navGroupsForRole(rol: Rol): NavGroup[] {
   return navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => item.roles.includes(role)),
+      items: group.items.filter((item) => item.roles.includes(rol)),
     }))
     .filter((group) => group.items.length > 0);
 }

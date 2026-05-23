@@ -16,8 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { editarUsuario } from '@/lib/usuarios/actions';
 import type { SucursalOpcion, UsuarioFila } from '@/lib/usuarios/queries';
-
-type Rol = 'ADMIN' | 'VENDEDOR';
+import { Rol } from '@prisma/client';
 
 export function EditarUsuarioDialog({
   open,

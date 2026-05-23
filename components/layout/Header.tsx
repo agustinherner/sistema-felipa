@@ -13,10 +13,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { signOut } from '@/lib/auth/client';
 import type { SessionUser } from '@/lib/auth/types';
+import { Rol } from '@prisma/client';
+import { MobileNav } from './MobileNav';
 
-const roleLabel: Record<SessionUser['role'], string> = {
-  admin: 'Administradora',
-  vendedor: 'Vendedora',
+const rolLabel: Record<Rol, string> = {
+  [Rol.ADMIN]: 'Administradora',
+  [Rol.VENDEDOR]: 'Vendedora',
 };
 
 export function Header({ user }: { user: SessionUser }) {
@@ -29,8 +31,10 @@ export function Header({ user }: { user: SessionUser }) {
   }
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-6">
-      <div />
+    <header className="flex h-14 items-center justify-between border-b bg-background px-4 lg:px-6">
+      <div className="flex items-center gap-2">
+        <MobileNav rol={user.rol} />
+      </div>
       <div className="flex items-center gap-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -44,7 +48,7 @@ export function Header({ user }: { user: SessionUser }) {
               <div className="flex flex-col">
                 <span className="text-sm font-medium">{user.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  {roleLabel[user.role]}
+                  {rolLabel[user.rol]}
                 </span>
               </div>
             </DropdownMenuLabel>

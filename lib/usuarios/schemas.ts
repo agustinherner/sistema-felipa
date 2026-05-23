@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Rol } from '@prisma/client';
 
 const USERNAME_REGEX = /^[a-z0-9._-]+$/;
 
@@ -22,7 +23,7 @@ const nombreField = z
   .trim()
   .min(2, 'El nombre debe tener al menos 2 caracteres');
 
-const rolField = z.enum(['ADMIN', 'VENDEDOR']);
+const rolField = z.nativeEnum(Rol);
 
 export const CrearUsuarioSchema = z
   .object({

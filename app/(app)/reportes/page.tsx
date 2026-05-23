@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { Rol } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/session';
 import {
   fechaCivilAR_ISO,
@@ -21,24 +21,14 @@ import { TablaVendedores } from './_components/TablaVendedores';
 import { TablaHoras } from './_components/TablaHoras';
 
 /**
- * Reportes. Admin only — el gate se hace con requireAuth() + check sobre
- * SessionUser.role, mismo patrón que usa el dashboard.
- *
- * Hay una inconsistencia documentada en el codebase: algunas rutas
- * Admin-only pasan `['ADMIN']` (uppercase) y otras `['admin']` (lowercase) a
- * requireAuth. El comportamiento es el mismo porque requireAuth normaliza,
- * pero la convención no está unificada. Acá replicamos el patrón del
- * dashboard: `user.role === 'admin'` sobre el SessionUser.
+ * Reportes. Admin only — gate por requireAuth con la whitelist del enum.
  */
 export default async function ReportesPage({
   searchParams,
 }: {
   searchParams: { desde?: string; hasta?: string; g?: string };
 }) {
-  const user = await requireAuth();
-  if (user.role !== 'admin') {
-    redirect('/dashboard');
-  }
+  await requireAuth([Rol.ADMIN]);
 
   const ahora = new Date();
   const defaultMes = rangoMesAR(ahora);

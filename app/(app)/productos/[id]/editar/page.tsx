@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
+import { Rol } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { getCategorias } from '@/lib/productos/queries';
@@ -19,7 +20,7 @@ export default async function EditarProductoPage({
 }: {
   params: { id: string };
 }) {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
 
   const [producto, categorias] = await Promise.all([
     prisma.producto.findUnique({

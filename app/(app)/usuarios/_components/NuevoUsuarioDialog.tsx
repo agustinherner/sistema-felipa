@@ -17,8 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { crearUsuario } from '@/lib/usuarios/actions';
 import type { SucursalOpcion } from '@/lib/usuarios/queries';
-
-type Rol = 'ADMIN' | 'VENDEDOR';
+import { Rol } from '@prisma/client';
 
 export function NuevoUsuarioDialog({
   open,
@@ -34,7 +33,7 @@ export function NuevoUsuarioDialog({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [rol, setRol] = useState<Rol>('VENDEDOR');
+  const [rol, setRol] = useState<Rol>(Rol.VENDEDOR);
   const [sucursalId, setSucursalId] = useState(sucursales[0]?.id ?? '');
   const [errores, setErrores] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
@@ -44,7 +43,7 @@ export function NuevoUsuarioDialog({
     setUsername('');
     setPassword('');
     setConfirmPassword('');
-    setRol('VENDEDOR');
+    setRol(Rol.VENDEDOR);
     setSucursalId(sucursales[0]?.id ?? '');
     setErrores([]);
     setPending(false);

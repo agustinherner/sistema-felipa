@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
+import { Prisma, Rol } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { getCurrentUser, requireAuth } from '@/lib/auth/session';
@@ -59,7 +59,7 @@ export async function buscarProducto(
 export async function crearVenta(
   rawInput: unknown,
 ): Promise<ActionResult<{ ventaId: string; codigoCorto: string }>> {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
 
   if (!user.sucursalId) {
     return fail(['Tu usuario no tiene sucursal asignada. Pedile a un admin que te la asigne.']);
@@ -90,7 +90,7 @@ const DetalleVentaSchema = z.object({
 export async function obtenerDetalleVentaAction(
   rawInput: unknown,
 ): Promise<ActionResult<{ venta: VentaDetalle }>> {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
 
   const parsed = DetalleVentaSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -100,7 +100,7 @@ export async function obtenerDetalleVentaAction(
   const venta = await obtenerVentaDetalle(parsed.data.ventaId);
   if (!venta) return fail(['Venta no encontrada']);
 
-  const esAdmin = user.role === 'admin';
+  const esAdmin = user.rol === Rol.ADMIN;
   if (!esAdmin && venta.usuarioId !== user.id) {
     return fail(['No autorizado']);
   }
@@ -120,7 +120,7 @@ const AnularVentaSchema = z.object({
 export async function anularVenta(
   rawInput: unknown,
 ): Promise<ActionResult<{ ventaId: string; codigoCorto: string }>> {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
 
   const parsed = AnularVentaSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -152,7 +152,7 @@ export async function anularVenta(
     ]);
   }
 
-  const esAdmin = user.role === 'admin';
+  const esAdmin = user.rol === Rol.ADMIN;
   if (!esAdmin && venta.usuarioId !== user.id) {
     return fail(['Solo podés anular tus propias ventas.']);
   }
@@ -229,7 +229,7 @@ const CrearDevolucionSchema = z
 export async function crearDevolucion(
   rawInput: unknown,
 ): Promise<ActionResult<{ devolucionId: string; montoTotal: number }>> {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
 
   const parsed = CrearDevolucionSchema.safeParse(rawInput);
   if (!parsed.success) {

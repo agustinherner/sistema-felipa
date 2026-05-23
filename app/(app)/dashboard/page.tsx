@@ -1,3 +1,4 @@
+import { Rol } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/session';
 import {
   listarTurnosDelMes,
@@ -25,7 +26,7 @@ const MESES = [
 ];
 
 export default async function DashboardPage() {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
 
   const ahora = new Date();
   const anio = ahora.getFullYear();
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
   ]);
   const retiros = resumen ? await obtenerRetirosTurno(resumen.id) : [];
 
-  const esAdmin = user.role === 'admin';
+  const esAdmin = user.rol === Rol.ADMIN;
 
   return (
     <div className="space-y-6">

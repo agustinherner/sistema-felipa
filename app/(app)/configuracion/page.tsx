@@ -1,7 +1,8 @@
+import { Rol } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/session';
 
 export default async function ConfiguracionPage() {
-  await requireAuth(['admin']);
+  await requireAuth([Rol.ADMIN]);
 
   return (
     <div className="space-y-2">

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft, PackagePlus } from 'lucide-react';
-import { TipoMovimiento } from '@prisma/client';
+import { Rol, TipoMovimiento } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
@@ -69,7 +69,7 @@ export default async function MovimientosPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
 
   const desdeStr = parseString(searchParams.desde);
   const hastaStr = parseString(searchParams.hasta);

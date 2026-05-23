@@ -40,7 +40,7 @@ async function hayOtroAdminActivoExceptoEste(userId: string): Promise<boolean> {
 export async function crearUsuario(
   rawInput: unknown,
 ): Promise<ActionResult<{ userId: string }>> {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
 
   const parsed = CrearUsuarioSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -119,7 +119,7 @@ export async function crearUsuario(
 export async function editarUsuario(
   rawInput: unknown,
 ): Promise<ActionResult> {
-  const session = await requireAuth(['ADMIN']);
+  const session = await requireAuth([Rol.ADMIN]);
 
   const parsed = EditarUsuarioSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -175,7 +175,7 @@ export async function editarUsuario(
 export async function toggleUsuarioActivo(
   rawInput: unknown,
 ): Promise<ActionResult> {
-  const session = await requireAuth(['ADMIN']);
+  const session = await requireAuth([Rol.ADMIN]);
 
   const parsed = ToggleActivoSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -222,7 +222,7 @@ export async function toggleUsuarioActivo(
 export async function resetUsuarioPassword(
   rawInput: unknown,
 ): Promise<ActionResult> {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
 
   const parsed = ResetPasswordSchema.safeParse(rawInput);
   if (!parsed.success) {

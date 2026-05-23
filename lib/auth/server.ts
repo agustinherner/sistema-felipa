@@ -27,6 +27,9 @@ export const auth = betterAuth({
     },
     additionalFields: {
       rol: {
+        // Better Auth no soporta enums nativos en additionalFields, solo
+        // primitivos. El valor real vive en Prisma como enum `Rol`; el narrow
+        // string → Rol y la validación se hacen en lib/auth/session.ts.
         type: 'string',
         required: false,
         defaultValue: 'VENDEDOR',

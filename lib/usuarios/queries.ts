@@ -1,11 +1,11 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, type Rol } from '@prisma/client';
 import { prisma } from '@/lib/db';
 
 export type UsuarioFila = {
   id: string;
   username: string | null;
   nombre: string;
-  rol: 'ADMIN' | 'VENDEDOR';
+  rol: Rol;
   activo: boolean;
   sucursalId: string | null;
   sucursalNombre: string | null;
@@ -14,7 +14,7 @@ export type UsuarioFila = {
 
 export type UsuariosFiltros = {
   q?: string;
-  rol?: 'ADMIN' | 'VENDEDOR' | null;
+  rol?: Rol | null;
   activo?: boolean | null;
 };
 

@@ -15,12 +15,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { SucursalOpcion, UsuarioFila } from '@/lib/usuarios/queries';
+import { Rol } from '@prisma/client';
 import { EditarUsuarioDialog } from './EditarUsuarioDialog';
 import { NuevoUsuarioDialog } from './NuevoUsuarioDialog';
 import { ResetPasswordDialog } from './ResetPasswordDialog';
 import { SwitchActivo } from './SwitchActivo';
 
-type RolFiltro = 'TODOS' | 'ADMIN' | 'VENDEDOR';
+type RolFiltro = 'TODOS' | Rol;
 type ActivoFiltro = 'TODOS' | 'ACTIVOS' | 'INACTIVOS';
 
 const FECHA_FMT = new Intl.DateTimeFormat('es-AR', {
@@ -134,9 +135,9 @@ export function UsuariosClient({
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={u.rol === 'ADMIN' ? 'default' : 'secondary'}
+                        variant={u.rol === Rol.ADMIN ? 'default' : 'secondary'}
                       >
-                        {u.rol === 'ADMIN' ? 'Admin' : 'Vendedor'}
+                        {u.rol === Rol.ADMIN ? 'Admin' : 'Vendedor'}
                       </Badge>
                     </TableCell>
                     <TableCell>{u.sucursalNombre ?? '—'}</TableCell>

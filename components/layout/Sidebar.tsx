@@ -5,15 +5,15 @@ import { usePathname } from 'next/navigation';
 import { Fragment } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import type { Role } from '@/lib/auth/types';
+import type { Rol } from '@prisma/client';
 import { navGroupsForRole } from '@/lib/nav';
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({ rol }: { rol: Rol }) {
   const pathname = usePathname();
-  const groups = navGroupsForRole(role);
+  const groups = navGroupsForRole(rol);
 
   return (
-    <aside className="flex w-60 flex-col border-r bg-background">
+    <aside className="hidden w-60 flex-col border-r bg-background lg:flex">
       <div className="flex h-14 items-center border-b px-4">
         <Link href="/" className="text-base font-semibold tracking-tight">
           Sistema Felipa

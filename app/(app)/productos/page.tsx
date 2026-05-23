@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Plus } from 'lucide-react';
+import { Rol } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
@@ -34,8 +35,8 @@ export default async function ProductosPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
-  const permissions = permisosProductos(user.role);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
+  const permissions = permisosProductos(user.rol);
 
   const q = parseString(searchParams.q);
   const categoriaId = parseString(searchParams.categoriaId);

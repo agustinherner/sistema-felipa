@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { Rol } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { requireAuth } from '@/lib/auth/session';
 import {
@@ -68,8 +69,8 @@ export default async function VentasPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
-  const permissions = permisosVentas(user.role);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
+  const permissions = permisosVentas(user.rol);
 
   if (!user.sucursalId) {
     return (

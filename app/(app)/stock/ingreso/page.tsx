@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { ArrowLeft, History } from 'lucide-react';
+import { Rol } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { IngresoForm } from './_components/IngresoForm';
 
 export default async function IngresoStockPage() {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
 
   const sucursal = await prisma.sucursal.findFirst({
     where: { activa: true },

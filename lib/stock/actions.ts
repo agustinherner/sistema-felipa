@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { Rol } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth/session';
 import { AjusteSchema, IngresoBulkSchema } from './schemas';
@@ -34,7 +35,7 @@ export type AjusteResult =
 export async function registrarAjuste(
   rawInput: unknown,
 ): Promise<AjusteResult> {
-  const user = await requireAuth(['ADMIN']);
+  const user = await requireAuth([Rol.ADMIN]);
   const parsed = AjusteSchema.safeParse(rawInput);
   if (!parsed.success) {
     return {
@@ -133,7 +134,7 @@ export async function obtenerHistorialVariante(
   // El historial por variante no expone costos, así que el vendedor también
   // puede consultarlo desde el modal de /stock. La defensa contra ajustes/
   // ingresos sigue restringida en sus respectivas actions (admin only).
-  await requireAuth(['ADMIN', 'VENDEDOR']);
+  await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
   try {
     const items = await getMovimientosVariante(varianteId, sucursalId, 20);
     return {
@@ -167,7 +168,7 @@ export type IngresoBulkResult =
 export async function registrarIngresoBulk(
   rawInput: unknown,
 ): Promise<IngresoBulkResult> {
-  const user = await requireAuth(['ADMIN']);
+  const user = await requireAuth([Rol.ADMIN]);
   const parsed = IngresoBulkSchema.safeParse(rawInput);
   if (!parsed.success) {
     return {
@@ -301,7 +302,7 @@ export async function buscarVariantesIngresoAction(
   q: string,
   sucursalId: string,
 ): Promise<BuscarVariantesResult> {
-  await requireAuth(['ADMIN']);
+  await requireAuth([Rol.ADMIN]);
   try {
     const items = await buscarVariantesParaIngreso({
       q,

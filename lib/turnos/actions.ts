@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { Prisma } from '@prisma/client';
+import { Prisma, Rol } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth/session';
 import {
@@ -133,7 +133,7 @@ const RegistrarRetiroSchema = z.object({
 export async function registrarRetiroCaja(
   rawInput: unknown,
 ): Promise<ActionResult<{ movimientoId: string }>> {
-  const user = await requireAuth(['ADMIN', 'VENDEDOR']);
+  const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
 
   const parsed = RegistrarRetiroSchema.safeParse(rawInput);
   if (!parsed.success) {

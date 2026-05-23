@@ -1,4 +1,4 @@
-import type { Role } from '@/lib/auth/types';
+import { Rol } from '@prisma/client';
 
 export type StockPermissions = {
   /** Ver columna Costo y precios de costo en el detalle. */
@@ -11,15 +11,8 @@ export type StockPermissions = {
   ingresarMercaderia: boolean;
 };
 
-/**
- * Mapea rol → permisos del módulo Stock.
- *
- * El enum del schema (`Rol`) está en uppercase (ADMIN/VENDEDOR), pero la
- * sesión ya entrega `Role` en lowercase (admin/vendedor). Acá usamos `Role`
- * para que el call site (Server Component) lo pase directo desde la sesión.
- */
-export function permisosStock(role: Role): StockPermissions {
-  if (role === 'admin') {
+export function permisosStock(rol: Rol): StockPermissions {
+  if (rol === Rol.ADMIN) {
     return {
       verCosto: true,
       ajustar: true,
