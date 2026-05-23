@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient, Rol, TipoMovimiento } from '@prisma/client';
 import { generarCodigoVenta } from '../lib/db/codigoVenta';
 import { auth } from '../lib/auth/server';
+import { obtenerConfiguracion } from '../lib/configuracion/queries';
 
 const prisma = new PrismaClient();
 
@@ -369,6 +370,12 @@ async function main() {
     },
   });
   console.log(`✔ Sucursal: ${sucursal.nombre}`);
+
+  // 1.b Configuración (singleton). Los defaults viven en obtenerConfiguracion;
+  // el seed solo dispara el get-or-create. Si el row ya existe (DB sembrada
+  // antes) no se pisa, así no perdemos overrides del admin.
+  await obtenerConfiguracion();
+  console.log('✔ Configuración (singleton)');
 
   // 2. Admin único (creado vía Better Auth para que el hash de password lo
   //    gestione la librería; el resto de usuarios se crean desde la UI).

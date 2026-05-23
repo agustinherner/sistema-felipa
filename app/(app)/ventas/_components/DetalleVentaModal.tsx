@@ -30,9 +30,10 @@ import type {
   VentaDetalle,
   VentaDetalleItem,
 } from '@/lib/ventas/queries';
-import { urlWhatsappComprobante } from '@/lib/ventas/comprobante';
-
-const DIAS_LIMITE_DEVOLUCION = 30;
+import {
+  urlWhatsappComprobante,
+  type NegocioInfo,
+} from '@/lib/ventas/comprobante';
 
 const FECHA_HORA_FMT = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -132,6 +133,8 @@ type Props = {
   onClose: () => void;
   currentUserId: string;
   esAdmin: boolean;
+  negocio: NegocioInfo;
+  diasDevolucion: number;
 };
 
 export function DetalleVentaModal({
@@ -139,6 +142,8 @@ export function DetalleVentaModal({
   onClose,
   currentUserId,
   esAdmin,
+  negocio,
+  diasDevolucion,
 }: Props) {
   const [state, setState] = useState<State>({ status: 'idle' });
   const router = useRouter();
@@ -217,6 +222,8 @@ export function DetalleVentaModal({
             onClose={onClose}
             currentUserId={currentUserId}
             esAdmin={esAdmin}
+            negocio={negocio}
+            diasDevolucion={diasDevolucion}
             onAnulada={handleVentaAnulada}
           />
         )}
@@ -230,12 +237,16 @@ function DetalleContenido({
   onClose,
   currentUserId,
   esAdmin,
+  negocio,
+  diasDevolucion,
   onAnulada,
 }: {
   venta: VentaDetalle;
   onClose: () => void;
   currentUserId: string;
   esAdmin: boolean;
+  negocio: NegocioInfo;
+  diasDevolucion: number;
   onAnulada: (v: VentaDetalle) => void;
 }) {
   const fechaCompleta = FECHA_HORA_FMT.format(new Date(venta.creadaEn));
@@ -256,12 +267,12 @@ function DetalleContenido({
   );
   const puedeDevolver =
     !venta.anulacion &&
-    diasDesdeVenta <= DIAS_LIMITE_DEVOLUCION &&
+    diasDesdeVenta <= diasDevolucion &&
     itemsConSaldo.length > 0;
 
   const whatsappHref = useMemo(
-    () => (venta.anulacion ? null : urlWhatsappComprobante(venta)),
-    [venta],
+    () => (venta.anulacion ? null : urlWhatsappComprobante(venta, negocio)),
+    [venta, negocio],
   );
 
   return (

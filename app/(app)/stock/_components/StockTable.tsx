@@ -38,9 +38,11 @@ type ModalState =
 export function StockTable({
   filas,
   permissions,
+  umbralStockBajo,
 }: {
   filas: StockFila[];
   permissions: StockPermissions;
+  umbralStockBajo: number;
 }) {
   const [modal, setModal] = useState<ModalState>(null);
   const [banner, setBanner] = useState<string | null>(null);
@@ -129,7 +131,10 @@ export function StockTable({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <BadgeStock cantidad={f.stockActual} />
+                    <BadgeStock
+                      cantidad={f.stockActual}
+                      umbralStockBajo={umbralStockBajo}
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="inline-flex gap-1">

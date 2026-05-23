@@ -5,6 +5,7 @@ import { Rol } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
+import { obtenerConfiguracion } from '@/lib/configuracion/queries';
 import { getCategorias } from '@/lib/productos/queries';
 import { getStockListado } from '@/lib/stock/queries';
 import { permisosStock } from '@/lib/stock/permissions';
@@ -63,6 +64,9 @@ export default async function StockPage({
     );
   }
 
+  const config = await obtenerConfiguracion();
+  const umbralStockBajo = config.umbralStockBajo;
+
   const [categorias, listado] = await Promise.all([
     getCategorias(),
     getStockListado({
@@ -71,6 +75,7 @@ export default async function StockPage({
       sucursalId: sucursal.id,
       soloStockBajo: soloBajo,
       soloStockNegativo: soloNegativo,
+      umbralStockBajo,
       incluirInactivas,
       page,
       pageSize: PAGE_SIZE,
@@ -135,6 +140,7 @@ export default async function StockPage({
         initialSoloBajo={soloBajo}
         initialSoloNegativo={soloNegativo}
         initialIncluirInactivas={incluirInactivas}
+        umbralStockBajo={umbralStockBajo}
       />
       {filas.length === 0 ? (
         <div className="rounded-md border bg-background p-8 text-center text-sm text-muted-foreground">
@@ -142,7 +148,11 @@ export default async function StockPage({
         </div>
       ) : (
         <>
-          <StockTable filas={filas} permissions={permissions} />
+          <StockTable
+            filas={filas}
+            permissions={permissions}
+            umbralStockBajo={umbralStockBajo}
+          />
           <StockPagination
             page={page}
             pageSize={PAGE_SIZE}

@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { Rol } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { requireAuth } from '@/lib/auth/session';
+import { obtenerConfiguracion } from '@/lib/configuracion/queries';
 import {
   listarUsuariosDeSucursal,
   listarVentas,
@@ -115,9 +116,10 @@ export default async function VentasPage({
     page,
   });
 
-  const [usuarios, listado] = await Promise.all([
+  const [usuarios, listado, config] = await Promise.all([
     usuariosPromise,
     listadoPromise,
+    obtenerConfiguracion(),
   ]);
 
   return (
@@ -157,6 +159,13 @@ export default async function VentasPage({
         page={page}
         permissions={permissions}
         currentUserId={user.id}
+        negocio={{
+          nombreNegocio: config.nombreNegocio,
+          direccion: config.direccion,
+          telefono: config.telefono,
+          cuit: config.cuit,
+        }}
+        diasDevolucion={config.diasDevolucion}
       />
     </div>
   );

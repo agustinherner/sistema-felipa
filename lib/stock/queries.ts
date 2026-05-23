@@ -25,6 +25,8 @@ export type GetStockListadoOpts = {
   sucursalId?: string | null;
   soloStockBajo?: boolean;
   soloStockNegativo?: boolean;
+  /** Umbral usado por el filtro "soloStockBajo" (de Configuracion). */
+  umbralStockBajo: number;
   incluirInactivas?: boolean;
   page: number;
   pageSize: number;
@@ -44,6 +46,7 @@ export async function getStockListado(
     sucursalId,
     soloStockBajo,
     soloStockNegativo,
+    umbralStockBajo,
     incluirInactivas,
     page,
     pageSize,
@@ -65,7 +68,7 @@ export async function getStockListado(
   if (Object.keys(variante).length > 0) where.variante = variante;
 
   if (soloStockNegativo) where.cantidad = { lt: 0 };
-  else if (soloStockBajo) where.cantidad = { lte: 3 };
+  else if (soloStockBajo) where.cantidad = { lte: umbralStockBajo };
 
   const skip = Math.max(0, (page - 1) * pageSize);
 

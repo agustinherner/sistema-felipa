@@ -4,6 +4,18 @@ import type {
   VentaDetalle,
 } from './queries';
 
+/**
+ * Datos del negocio que se inyectan en el comprobante. El módulo es puro: el
+ * caller los lee de Configuracion y los pasa acá. Campos opcionales se omiten
+ * (no se imprime "null").
+ */
+export type NegocioInfo = {
+  nombreNegocio: string;
+  direccion: string | null;
+  telefono: string | null;
+  cuit: string | null;
+};
+
 const FECHA_FMT = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
   month: '2-digit',
@@ -53,11 +65,17 @@ function nombreItem(
 /**
  * Texto plano del comprobante, listo para enviar por WhatsApp.
  */
-export function generarTextoComprobante(venta: VentaDetalle): string {
+export function generarTextoComprobante(
+  venta: VentaDetalle,
+  negocio: NegocioInfo,
+): string {
   const fecha = FECHA_FMT.format(new Date(venta.creadaEn));
   const lineas: string[] = [];
 
-  lineas.push('🧾 Comprobante — Felipa 1');
+  lineas.push(`🧾 Comprobante — ${negocio.nombreNegocio}`);
+  if (negocio.direccion) lineas.push(negocio.direccion);
+  if (negocio.telefono) lineas.push(`Tel: ${negocio.telefono}`);
+  if (negocio.cuit) lineas.push(`CUIT: ${negocio.cuit}`);
   lineas.push(`Venta: ${venta.codigoCorto}`);
   lineas.push(`Fecha: ${fecha}`);
   lineas.push('');
@@ -86,7 +104,10 @@ export function generarTextoComprobante(venta: VentaDetalle): string {
   return lineas.join('\n');
 }
 
-export function urlWhatsappComprobante(venta: VentaDetalle): string {
-  const texto = generarTextoComprobante(venta);
+export function urlWhatsappComprobante(
+  venta: VentaDetalle,
+  negocio: NegocioInfo,
+): string {
+  const texto = generarTextoComprobante(venta, negocio);
   return `https://wa.me/?text=${encodeURIComponent(texto)}`;
 }

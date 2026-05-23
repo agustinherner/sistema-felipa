@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { CheckCircle2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { obtenerConfiguracion } from '@/lib/configuracion/queries';
 import { obtenerVentaDetalle } from '@/lib/ventas/queries';
 import { urlWhatsappComprobante } from '@/lib/ventas/comprobante';
 
@@ -28,12 +29,20 @@ export default async function VentaExitoPage({
   let turnoAbierto = false;
   let whatsappHref: string | null = null;
   if (ventaId) {
-    const venta = await obtenerVentaDetalle(ventaId);
+    const [venta, config] = await Promise.all([
+      obtenerVentaDetalle(ventaId),
+      obtenerConfiguracion(),
+    ]);
     if (venta) {
       turnoAbierto =
         !venta.anulacion && !!venta.turno && venta.turno.cierreEn === null;
       if (!venta.anulacion) {
-        whatsappHref = urlWhatsappComprobante(venta);
+        whatsappHref = urlWhatsappComprobante(venta, {
+          nombreNegocio: config.nombreNegocio,
+          direccion: config.direccion,
+          telefono: config.telefono,
+          cuit: config.cuit,
+        });
       }
     }
   }

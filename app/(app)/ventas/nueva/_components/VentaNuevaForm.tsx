@@ -43,7 +43,12 @@ function redondear2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function VentaNuevaForm() {
+type Props = {
+  /** Porcentaje del botón "1 toque" Ef/Transf (de Configuracion). */
+  descuentoEstandar: number;
+};
+
+export function VentaNuevaForm({ descuentoEstandar }: Props) {
   const router = useRouter();
 
   const [items, setItems] = useState<ItemCarrito[]>([]);
@@ -156,8 +161,8 @@ export function VentaNuevaForm() {
   }, []);
 
   const onAplicarPresetEfTransf = useCallback(() => {
-    setDescuento({ tipo: 'PORCENTAJE', valor: '10' });
-  }, []);
+    setDescuento({ tipo: 'PORCENTAJE', valor: String(descuentoEstandar) });
+  }, [descuentoEstandar]);
 
   const onQuitarDescuento = useCallback(() => {
     setDescuento(null);
@@ -308,6 +313,7 @@ export function VentaNuevaForm() {
           descuentoMonto={descuentoMonto}
           descuentoError={descuentoError}
           descuentoActivo={descuentoActivo}
+          descuentoEstandar={descuentoEstandar}
           total={total}
           sumaPagos={sumaPagos}
           diferenciaRestante={diferenciaRestante}

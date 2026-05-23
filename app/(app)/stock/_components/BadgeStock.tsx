@@ -1,8 +1,14 @@
 import { Badge } from '@/components/ui/badge';
 import { clasificarStock } from '@/lib/stock/helpers';
 
-export function BadgeStock({ cantidad }: { cantidad: number }) {
-  const kind = clasificarStock(cantidad);
+export function BadgeStock({
+  cantidad,
+  umbralStockBajo,
+}: {
+  cantidad: number;
+  umbralStockBajo: number;
+}) {
+  const kind = clasificarStock(cantidad, umbralStockBajo);
 
   if (kind === 'ok') {
     return <span className="font-medium tabular-nums">{cantidad}</span>;

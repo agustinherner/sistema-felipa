@@ -16,6 +16,7 @@ export function StockFilters({
   initialSoloBajo,
   initialSoloNegativo,
   initialIncluirInactivas,
+  umbralStockBajo,
 }: {
   categorias: Categoria[];
   initialQ: string;
@@ -23,6 +24,7 @@ export function StockFilters({
   initialSoloBajo: boolean;
   initialSoloNegativo: boolean;
   initialIncluirInactivas: boolean;
+  umbralStockBajo: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -107,7 +109,7 @@ export function StockFilters({
           onChange={(e) => setParam('soloBajo', e.target.checked)}
           className="h-4 w-4 rounded border-input"
         />
-        Solo stock bajo (≤3)
+        Solo stock bajo (≤{umbralStockBajo})
       </label>
       <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
         <input

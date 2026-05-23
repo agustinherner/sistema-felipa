@@ -13,8 +13,7 @@ import {
 } from './queries';
 import { crearVentaCore } from './core';
 import { fail, type ActionResult } from './types';
-
-const DIAS_LIMITE_DEVOLUCION = 30;
+import { obtenerConfiguracion } from '@/lib/configuracion/queries';
 
 export type ResultadoBusqueda = {
   varianteId: string;
@@ -267,11 +266,13 @@ export async function crearDevolucion(
     return fail(['No se puede devolver una venta anulada.']);
   }
 
+  const config = await obtenerConfiguracion();
+  const diasLimite = config.diasDevolucion;
   const diasDesdeVenta =
     (Date.now() - venta.creadaEn.getTime()) / (1000 * 60 * 60 * 24);
-  if (diasDesdeVenta > DIAS_LIMITE_DEVOLUCION) {
+  if (diasDesdeVenta > diasLimite) {
     return fail([
-      `No se puede devolver una venta de más de ${DIAS_LIMITE_DEVOLUCION} días.`,
+      `No se puede devolver una venta de más de ${diasLimite} días.`,
     ]);
   }
 

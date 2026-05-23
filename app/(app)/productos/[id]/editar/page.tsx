@@ -4,6 +4,7 @@ import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { Rol } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
+import { obtenerConfiguracion } from '@/lib/configuracion/queries';
 import { getCategorias } from '@/lib/productos/queries';
 import { ProductoForm } from '../../_components/ProductoForm';
 import type { VarianteFormState } from '@/lib/productos/helpers';
@@ -22,7 +23,7 @@ export default async function EditarProductoPage({
 }) {
   await requireAuth([Rol.ADMIN]);
 
-  const [producto, categorias] = await Promise.all([
+  const [producto, categorias, config] = await Promise.all([
     prisma.producto.findUnique({
       where: { id: params.id },
       include: {
@@ -33,6 +34,7 @@ export default async function EditarProductoPage({
       },
     }),
     getCategorias(),
+    obtenerConfiguracion(),
   ]);
 
   if (!producto) notFound();
@@ -114,6 +116,7 @@ export default async function EditarProductoPage({
         modo="edicion"
         productoId={producto.id}
         categorias={categorias}
+        markupDefault={Number(config.markupDefault)}
         valoresIniciales={{
           id: producto.id,
           nombre: producto.nombre,

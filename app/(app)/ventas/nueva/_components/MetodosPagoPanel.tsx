@@ -19,6 +19,8 @@ type Props = {
   descuentoMonto: number;
   descuentoError: string | null;
   descuentoActivo: boolean;
+  /** Porcentaje del preset "1 toque" (de Configuracion). Se usa solo en el label. */
+  descuentoEstandar: number;
   total: number;
   sumaPagos: number;
   diferenciaRestante: number;
@@ -56,6 +58,7 @@ export function MetodosPagoPanel({
   descuentoMonto,
   descuentoError,
   descuentoActivo,
+  descuentoEstandar,
   total,
   diferenciaRestante,
   cobroValido,
@@ -162,7 +165,7 @@ export function MetodosPagoPanel({
             disabled={cobrando || carritoVacio}
             className="h-8 text-xs"
           >
-            10% Ef/Transf
+            {descuentoEstandar}% Ef/Transf
           </Button>
         </div>
         <div className="flex items-center gap-2">

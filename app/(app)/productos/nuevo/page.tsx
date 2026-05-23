@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Rol } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/session';
+import { obtenerConfiguracion } from '@/lib/configuracion/queries';
 import { getCategorias } from '@/lib/productos/queries';
 import { ProductoForm } from '../_components/ProductoForm';
 import { nuevaVarianteVacia } from '@/lib/productos/helpers';
@@ -17,7 +18,10 @@ export default async function NuevoProductoPage({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   await requireAuth([Rol.ADMIN]);
-  const categorias = await getCategorias();
+  const [categorias, config] = await Promise.all([
+    getCategorias(),
+    obtenerConfiguracion(),
+  ]);
 
   const categoriaPersistida = parseString(searchParams.categoriaId);
 
@@ -38,6 +42,7 @@ export default async function NuevoProductoPage({
         modo="alta"
         categorias={categorias}
         categoriaPersistidaId={categoriaPersistida}
+        markupDefault={Number(config.markupDefault)}
         valoresIniciales={{
           nombre: '',
           descripcion: '',

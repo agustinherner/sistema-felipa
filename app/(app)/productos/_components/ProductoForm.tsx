@@ -15,8 +15,6 @@ import {
 import { NuevaCategoriaModal } from './NuevaCategoriaModal';
 import { VarianteCard } from './VarianteCard';
 
-const MARKUP = 2.15;
-
 type Categoria = { id: string; nombre: string };
 
 export type ProductoFormValoresIniciales = {
@@ -36,6 +34,8 @@ type Props = {
   valoresIniciales: ProductoFormValoresIniciales;
   productoId?: string;
   categoriaPersistidaId?: string;
+  /** Multiplicador de markup leído de Configuracion (ej: 2.15 = "115%"). */
+  markupDefault: number;
 };
 
 function parseDecimalOrNull(s: string): number | null {
@@ -65,12 +65,27 @@ function extraerCodigosDeErrores(errores: string[]): Set<string> {
   return codigos;
 }
 
-function calcularPrecioConMarkup(costoStr: string, precioStr: string): string {
+function calcularPrecioConMarkup(
+  costoStr: string,
+  precioStr: string,
+  markup: number,
+): string {
   if (precioStr.trim() !== '') return precioStr;
   const costoNum = parseDecimalOrNull(costoStr);
   if (costoNum == null || costoNum <= 0) return precioStr;
-  const sugerido = Math.round(costoNum * MARKUP * 100) / 100;
+  const sugerido = Math.round(costoNum * markup * 100) / 100;
   return String(sugerido);
+}
+
+/**
+ * "2.15" → "115" para mostrar en el hint. Si el admin pone un multiplicador
+ * con decimales raros (ej 1.875 → 87.5%), mantenemos 1 decimal.
+ * Redondeamos a 1 decimal primero para borrar drift de punto flotante
+ * (sin esto, 2.15 → 114.99999999999 → "115.0%" en vez de "115%").
+ */
+function formatearMarkupComoPorcentaje(markup: number): string {
+  const pct = Math.round((markup - 1) * 1000) / 10;
+  return Number.isInteger(pct) ? pct.toString() : pct.toFixed(1);
 }
 
 export function ProductoForm({
@@ -79,6 +94,7 @@ export function ProductoForm({
   valoresIniciales,
   productoId,
   categoriaPersistidaId,
+  markupDefault,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -157,7 +173,7 @@ export function ProductoForm({
   );
 
   function handleCostoBaseBlur() {
-    const sugerido = calcularPrecioConMarkup(costoBase, precioBase);
+    const sugerido = calcularPrecioConMarkup(costoBase, precioBase, markupDefault);
     if (sugerido !== precioBase) setPrecioBase(sugerido);
   }
 
@@ -166,7 +182,7 @@ export function ProductoForm({
       prev.map((v) => {
         if (v.uid !== uid) return v;
         if (!v.precioPropio) return v;
-        const sugerido = calcularPrecioConMarkup(v.costo, v.precio);
+        const sugerido = calcularPrecioConMarkup(v.costo, v.precio, markupDefault);
         if (sugerido === v.precio) return v;
         return { ...v, precio: sugerido };
       }),
@@ -295,11 +311,15 @@ export function ProductoForm({
   }
 
   function handleSubmit(mode: 'guardar' | 'guardar-y-otro') {
-    const precioBaseFinal = calcularPrecioConMarkup(costoBase, precioBase);
+    const precioBaseFinal = calcularPrecioConMarkup(
+      costoBase,
+      precioBase,
+      markupDefault,
+    );
     let cambioAlgunaVariante = false;
     const variantesFinal = variantes.map((v) => {
       if (!v.precioPropio) return v;
-      const p = calcularPrecioConMarkup(v.costo, v.precio);
+      const p = calcularPrecioConMarkup(v.costo, v.precio, markupDefault);
       if (p === v.precio) return v;
       cambioAlgunaVariante = true;
       return { ...v, precio: p };
@@ -512,8 +532,9 @@ export function ProductoForm({
               disabled={pending}
             />
             <p className="text-xs text-muted-foreground">
-              Markup sugerido: 115% (precio = costo × 2.15). Se autocompleta al
-              salir del costo si está vacío.
+              Markup sugerido: {formatearMarkupComoPorcentaje(markupDefault)}%
+              {' '}(precio = costo × {markupDefault}). Se autocompleta al salir
+              del costo si está vacío.
             </p>
           </div>
         </div>

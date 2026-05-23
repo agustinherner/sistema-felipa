@@ -27,6 +27,23 @@ model HealthCheck {
   checkedAt DateTime @default(now())
 }
 
+// Singleton: siempre un único row con id = "singleton".
+// markupDefault es un MULTIPLICADOR (2.15 = "115% sobre el costo"), igual
+// que el hardcode original en ProductoForm. descuentoEstandar es porcentaje.
+model Configuracion {
+  id                String   @id @default("singleton")
+  nombreNegocio     String
+  direccion         String?
+  telefono          String?
+  cuit              String?
+  markupDefault     Decimal  @db.Decimal(6, 4)
+  descuentoEstandar Decimal  @db.Decimal(5, 2)
+  diasDevolucion    Int
+  umbralStockBajo   Int
+  creadoEn          DateTime @default(now())
+  actualizadoEn     DateTime @updatedAt
+}
+
 model Sucursal {
   id        String   @id @default(cuid())
   nombre    String   @unique

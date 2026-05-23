@@ -85,7 +85,9 @@ export const navGroups: NavGroup[] = [
         href: '/configuracion',
         label: 'Configuración',
         icon: Settings,
-        roles: [Rol.ADMIN],
+        // Visible para todos: Admin edita parámetros del negocio; Vendedor
+        // solo ve la sección "Mi cuenta" (cambio de password propia).
+        roles: [Rol.ADMIN, Rol.VENDEDOR],
       },
     ],
   },

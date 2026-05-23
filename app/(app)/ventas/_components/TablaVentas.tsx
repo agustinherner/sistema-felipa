@@ -18,6 +18,7 @@ import type {
   MetodoPagoVenta,
   VentaListItem,
 } from '@/lib/ventas/queries';
+import type { NegocioInfo } from '@/lib/ventas/comprobante';
 import { DetalleVentaModal } from './DetalleVentaModal';
 
 const FECHA_FMT = new Intl.DateTimeFormat('es-AR', {
@@ -96,6 +97,8 @@ type Props = {
   page: number;
   permissions: VentasPermissions;
   currentUserId: string;
+  negocio: NegocioInfo;
+  diasDevolucion: number;
 };
 
 export function TablaVentas({
@@ -104,6 +107,8 @@ export function TablaVentas({
   page,
   permissions,
   currentUserId,
+  negocio,
+  diasDevolucion,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -301,6 +306,8 @@ export function TablaVentas({
         }}
         currentUserId={currentUserId}
         esAdmin={permissions.verTodas}
+        negocio={negocio}
+        diasDevolucion={diasDevolucion}
       />
     </div>
   );

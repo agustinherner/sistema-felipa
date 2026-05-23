@@ -38,10 +38,17 @@ export function colorTipoMovimiento(tipo: TipoMovimiento): string {
 
 export type StockBadgeKind = 'sin-stock' | 'negativo' | 'bajo' | 'ok';
 
-export function clasificarStock(cantidad: number): StockBadgeKind {
+/**
+ * Helper puro: el umbral viene como parámetro desde el caller (la lectura
+ * de Configuracion vive en el borde server/RSC, no acá adentro).
+ */
+export function clasificarStock(
+  cantidad: number,
+  umbralStockBajo: number,
+): StockBadgeKind {
   if (cantidad < 0) return 'negativo';
   if (cantidad === 0) return 'sin-stock';
-  if (cantidad <= 3) return 'bajo';
+  if (cantidad <= umbralStockBajo) return 'bajo';
   return 'ok';
 }
 

@@ -1,5 +1,6 @@
 import { Rol } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/session';
+import { obtenerConfiguracion } from '@/lib/configuracion/queries';
 import { requireTurnoAbierto } from '@/lib/turnos/guards';
 import { VentaNuevaForm } from './_components/VentaNuevaForm';
 
@@ -13,6 +14,7 @@ export default async function NuevaVentaPage() {
   // requireAuth explícito para que el usuario quede tipado.
   const user = await requireAuth([Rol.ADMIN, Rol.VENDEDOR]);
   await requireTurnoAbierto();
+  const config = await obtenerConfiguracion();
 
   return (
     <div className="space-y-6">
@@ -23,7 +25,7 @@ export default async function NuevaVentaPage() {
         </p>
       </div>
 
-      <VentaNuevaForm />
+      <VentaNuevaForm descuentoEstandar={Number(config.descuentoEstandar)} />
     </div>
   );
 }
