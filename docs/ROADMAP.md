@@ -238,7 +238,7 @@ Neon (São Paulo, sa-east-1), Vercel auto-deploy desde `main`. Login, ventas, st
 **Entregables completos**:
 1. ✅ **Fix bug registro de venta bajo concurrencia** — commits `f3664a3` + `0c3f076`. Advisory lock transaccional pooler-safe + NNN por `max()` + guard `useRef` contra doble submit.
 2. ✅ **Descuento editable** — commit `33dc571`. Fuera el 10% automático; manual y opcional por % o monto fijo; el 10% efectivo/transferencia queda como botón de un toque. Campos `descuentoTipo` + `descuentoValor` + `descuentoTotal` snapshot.
-3. ✅ **Alta rápida de producto en la venta** — commit `bd87340`. Nombre + precio, `incompleto=true` + `creadoPorId`. Auto-desmarca cuando Admin completa con `costoBase>0` y categoría. Vendedora puede.
+3. ✅ **Alta rápida de producto en la venta** — commit `bd87340`. Nombre + precio, `incompleto=true` + `creadoPorId`. Auto-desmarca cuando Admin completa con `costoBase>0` y categoría. Vendedora puede. _Fix de visibilidad del botón (2026-05-23, commit `b88c8a5`): aparecía solo con 0 resultados; ahora también con match parcial._
 4. ✅ **Cancelar venta** — commit `4e0b0f0`. Anular solo con el turno abierto. `anuladaEn` + `anuladaPorId` + `motivoAnulacion`. Reversión de stock atómica. Excluida de agregaciones. Vendedora anula sus propias del turno.
 5. ✅ **Retiro de caja** — commit `331463b`. Modelo `MovimientoCaja` (varios por turno). Esperado al cierre = inicial + ventas efectivo − retiros. Vendedora puede.
 6. ✅ **Importador de catálogo** — commit `c74328a`. Script idempotente para planilla normalizada.

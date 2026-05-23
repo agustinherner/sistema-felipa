@@ -7,7 +7,7 @@ Bitácora viva del proyecto. Se actualiza después de cada sesión de trabajo.
 
 ## Sprint actual
 
-**Sprint 10 — Optimización de performance — Fase 1 cerrada y deployada (2026-05-23). `vercel.json` con `regions: ["gru1"]` (misma región que Neon) + 4 `loading.tsx` con skeletons (grupo app + dashboard + turno/cerrar + ventas/nueva). La navegación entre pantallas bajó de 6-10s a <2s solo con la Fase 1 —la geografía era el cuello principal. Fase 2 (dedup de queries) y cron keep-warm parqueados; ver `DECISIONES.md`.**
+**Sprint 10 — Optimización de performance — Fase 1 cerrada y deployada (2026-05-23). `vercel.json` con `regions: ["gru1"]` (misma región que Neon) + 4 `loading.tsx` con skeletons (grupo app + dashboard + turno/cerrar + ventas/nueva). La navegación entre pantallas bajó de 6-10s a <2s solo con la Fase 1 —la geografía era el cuello principal. Fase 2 (dedup de queries) y cron keep-warm parqueados; ver `DECISIONES.md`.** Fix puntual post-sprint el 2026-05-23 (visibilidad del botón de alta rápida; ver `DECISIONES.md`).
 
 ## Tarea en curso
 
@@ -15,19 +15,13 @@ Ninguna.
 
 ## Último avance
 
-**Sprint 10 — Optimización Fase 1 — COMPLETO + deployado (2026-05-23)**. Commit `75054cb` en `main` (código) + commit de docs de cierre.
-
-**Diagnóstico**: tres causas sumadas — Serverless Functions en iad1 (US-East) con Neon en São Paulo (~120ms por round-trip), driver TCP clásico de Prisma (handshake por cold start), y cascadas de queries secuenciales en pantallas pesadas (dashboard ~5-6 RTTs, `/turno/cerrar` 5 con duplicada, `/ventas/nueva` 4 con `getCurrentUser` duplicado). Plus cero `loading.tsx`.
-
-**Fase 1 (única deployada)**: `vercel.json` con `regions: ["gru1"]` —RTT de ~120ms a ~5-20ms—; primitivo `components/ui/skeleton.tsx` + 4 `loading.tsx` que imitan el layout real (cards, stats, tabla, form, dos columnas); `/health` ya hacía `prisma.$queryRaw\`SELECT 1\``, quedó como keep-warm para ping externo.
-
-**Resultado**: navegación de 6-10s a <2s. La primera carga del día conserva el cold start de Neon pero no molesta en uso. Se cierra el sprint en Fase 1; la Fase 2 se descarta por ahora (con <2s no justifica tocar el cálculo de turno/ventas).
-
-**Parqueado, para retomar si el uso real lo pide**: cron keep-warm de Neon (cuenta de cron-job.org creada, falta horario del local), Fase 2 dedup de queries (ya diagnosticada), driver serverless de Neon (HTTP) en Prisma.
+**Fix de visibilidad del botón de alta rápida en la venta (2026-05-23)** — commit `b88c8a5` en `main`. El botón "Agregar producto rápido" aparecía solo cuando la búsqueda devolvía 0 resultados; ahora también aparece con match parcial (bar visible siempre que haya término ≥2 chars + footer "Ninguno es el que busco — agregar 'X'" dentro del dropdown). **NO fue regresión del Sprint 9**: la condición estaba así desde bd87340. Descuento estándar cableado del Sprint 9 intacto. Sin migración. Ver `DECISIONES.md`.
 
 ---
 
 ## Historial de sprints anteriores
+
+**Fix puntual post-Sprint 10 (2026-05-23)** — commit `b88c8a5` en `main`, deployado. Visibilidad del botón de alta rápida en `/ventas/nueva` (aparecía solo con 0 resultados; ahora también con match parcial). Solo `BusquedaInput.tsx`. Sin migración. Decisiones en `DECISIONES.md`.
 
 **Sprint 10 — Optimización de performance Fase 1 completado (2026-05-23)** — commit `75054cb` en `main`, deployado. Región `gru1` (São Paulo, alineada con Neon) + 4 `loading.tsx` con skeletons. Bajó la navegación de 6-10s a <2s. Fase 2 (dedup) y cron keep-warm parqueados. Decisiones en `DECISIONES.md`.
 
@@ -127,7 +121,7 @@ Ninguno.
 ### Repo y entornos
 - **Repo**: GitHub privado `sistema-felipa`, rama base `main`.
 - **Ubicación local**: `C:\Users\VICTUS\Documents\Sistemas\sistema-felipa` — fuera de OneDrive (movido el 2026-05-22; resolvió el conflicto del file watcher, `next dev` arranca limpio).
-- **Último commit en main**: `75054cb` (Sprint 10 Fase 1 — región gru1 + loading skeletons + health keep-warm), más el commit de docs de cierre.
+- **Último commit en main**: `b88c8a5` (fix visibilidad del botón de alta rápida en `/ventas/nueva`), más el commit de docs de cierre.
 - **Branch en curso**: ninguna.
 - **Convención de branches**: una branch por sprint, squash merge a `main` al cerrar.
 - **DB de desarrollo**: contenedor Docker `felipa-db` en puerto 5433.
@@ -143,6 +137,7 @@ Ninguno.
 - **Cron keep-warm de Neon** (parqueado, Sprint 10): cuenta de cron-job.org creada; falta el ping a `/health` cada 4 min en horario del local (pendiente confirmar horarios de apertura). Ataca la primera carga del día (scale-to-zero del free tier).
 - **Fase 2 de optimización — dedup de queries** (parqueado, Sprint 10, ya diagnosticada): cachear `getCurrentUser`, sacar la doble `venta.findMany` en `/turno/cerrar`, una sola `ventasPorMetodoPago` en el dashboard, romper la cascada. Con la región alineada cada RTT vale ~5ms, así que el impacto es mucho menor que antes — evaluar si vale el riesgo (toca cálculo de turno/ventas).
 - **Driver serverless de Neon (HTTP) en Prisma** (parqueado, Sprint 10): última palanca para cold starts. Reemplaza el driver TCP clásico por `@prisma/adapter-neon` + `@neondatabase/serverless`.
+- **Manejo silencioso del error de `buscarProducto`** (fix 2026-05-23): si la action tira excepción dentro del `startTransition` de `BusquedaInput`, el error se traga (solo cartel ámbar de "Error en la búsqueda"). El fix de visibilidad del botón lo mitiga (el alta rápida sigue accesible), pero queda como limpieza futura envolver el `await` en try/catch para no perder el error real.
 - Estrategia de backups de la DB en Neon (free tier no tiene point-in-time restore).
 - Dominio para go-live (`felipa.vercel.app` alcanza para el demo; dominio custom a definir con cliente).
 - Compra (o no) de impresora de tickets antes del go-live.

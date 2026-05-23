@@ -790,4 +790,16 @@ Las agregaciones de caja (`calcularEfectivoVendidoEnTurno`, `obtenerResumenTurno
 
 ---
 
+## 2026-05-23 · Fix: visibilidad del botón de alta rápida en la venta
+
+**Síntoma**: el botón "Agregar producto rápido" en `/ventas/nueva` no aparecía al tipear el nombre de un producto nuevo —reportado en producción.
+
+**Diagnóstico**: NO fue regresión del Sprint 9. La condición original (desde bd87340) mostraba el botón solo cuando la búsqueda devolvía 0 resultados. En un catálogo real, tipear un producto nuevo casi siempre matchea parcialmente uno existente → el dropdown se llena de resultados y el botón quedaba oculto. El caso "0 resultados" donde sí aparecía es el menos común.
+
+**Fix** (solo `BusquedaInput.tsx`): el botón aparece siempre que haya un término ≥2 chars, más un footer "Ninguno es el que busco — agregar 'X'" como última fila del dropdown para el caso de match parcial. El descuento cableado en el Sprint 9 quedó intacto.
+
+**Deuda menor anotada**: si `buscarProducto` falla (ej. cold start), el error se traga en silencio (solo cartel ámbar). El fix lo mitiga (el botón aparece igual), pero el manejo limpio del error de búsqueda queda para una limpieza futura.
+
+---
+
 _(Próximas decisiones van acá abajo, en orden cronológico.)_
